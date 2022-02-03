@@ -24,6 +24,8 @@ func fatal(format string, args ...interface{}) {
 type client interface {
 }
 
+type resourceStatuses map[string]types.ResourceStatus
+
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{
@@ -66,7 +68,7 @@ func main() {
 		log.Err(err).Msg("error loading default config")
 	}
 
-	resourceStatuses := make(map[string]types.ResourceStatus)
+	resourceStatuses := make(resourceStatuses)
 
 	svc := cloudformation.NewFromConfig(cfg)
 
@@ -82,15 +84,20 @@ func main() {
 			continue
 		}
 		log.Debug().Interface("res", *res).Msg("got result")
-		time.Sleep(sleepTime)
 		updateState(&resourceStatuses, res)
+		presentState(&resourceStatuses)
+		time.Sleep(sleepTime)
 	}
 }
 
-func updateState(statuses *map[string]types.ResourceStatus, res *cloudformation.DescribeStackResourcesOutput) {
+func updateState(statuses *resourceStatuses, res *cloudformation.DescribeStackResourcesOutput) {
 	for _, resource := range res.StackResources {
 		logicalName := resource.LogicalResourceId
 		status := resource.ResourceStatus
 		(*statuses)[*logicalName] = status
 	}
+}
+
+func presentState(statuses *resourceStatuses) {
+	log.Info().Interface("statuses", statuses).Msg("got statuses")
 }
