@@ -4,9 +4,12 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/jessevdk/go-flags"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -26,16 +29,29 @@ func main() {
 	log.Logger = log.Output(zerolog.ConsoleWriter{
 		Out: os.Stderr,
 	})
-	log.Debug().Msgf("%s starting", os.Args[0])
+
+	ctx := context.TODO()
 
 	var opts struct {
+		Verbose []bool `short:"v" long:"verbose" description:"Print verbose logging output"`
 	}
 
 	args, err := flags.Parse(&opts)
 	if err != nil {
-		log.Error().Msg("command line arguments invalid")
+		// log.Error().Msg("command line arguments invalid")
 		os.Exit(1)
 	}
+	switch len(opts.Verbose) {
+	case 0:
+		zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	case 1:
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	default:
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
+	log.Debug().Msgf("%s starting", os.Args[0])
+	log.Debug().Interface("opts", opts).Msg("parsed command line options")
 
 	if len(args) == 0 {
 		log.Error().Msg("no stack name specified")
@@ -45,11 +61,36 @@ func main() {
 	_ = name
 
 	// TODO: update default region
-	cfg, err := config.LoadDefaultConfig(context.TODO(), config.WithRegion("eu-west-2"))
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("eu-west-2"))
 	if err != nil {
 		log.Err(err).Msg("error loading default config")
 	}
 
+	resourceStatuses := make(map[string]types.ResourceStatus)
+
 	svc := cloudformation.NewFromConfig(cfg)
-	_ = svc
+
+	sleepTime := 2 * time.Second
+	params := &cloudformation.DescribeStackResourcesInput{
+		StackName: aws.String(name),
+	}
+	for {
+		res, err := svc.DescribeStackResources(ctx, params)
+		if err != nil {
+			log.Warn().Err(err).Msg("error when polling stack resources")
+			time.Sleep(sleepTime)
+			continue
+		}
+		log.Debug().Interface("res", *res).Msg("got result")
+		time.Sleep(sleepTime)
+		updateState(&resourceStatuses, res)
+	}
+}
+
+func updateState(statuses *map[string]types.ResourceStatus, res *cloudformation.DescribeStackResourcesOutput) {
+	for _, resource := range res.StackResources {
+		logicalName := resource.LogicalResourceId
+		status := resource.ResourceStatus
+		(*statuses)[*logicalName] = status
+	}
 }
