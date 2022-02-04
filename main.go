@@ -42,7 +42,7 @@ func NewScreen() (*Screen, error) {
 	return &Screen{s: &s}, nil
 }
 
-func (s *Screen) Write(line int, format string, args ...interface{}) {
+func (s *Screen) write(line int, format string, args ...interface{}) {
 	row := line
 	col := 0
 	text := fmt.Sprintf(format, args...)
@@ -66,7 +66,7 @@ func (s *Screen) Quit() {
 	os.Exit(0)
 }
 
-func (s *Screen) Show() {
+func (s *Screen) show() {
 	(*s.s).Show()
 }
 
@@ -78,21 +78,21 @@ func (s *Screen) Sync() {
 	(*s.s).Sync()
 }
 
-func (s *Screen) Clear() {
+func (s *Screen) clear() {
 	(*s.s).Clear()
 }
 
 func (s *Screen) Render(statuses *fetcher.ResourceStatuses) {
-	s.Clear()
+	s.clear()
 	i := 0
 	now := time.Now()
-	s.Write(i, "%s", now)
+	s.write(i, "%s", now)
 	i++
 	for k, v := range *statuses {
-		s.Write(i, "%s: %s", k, v)
+		s.write(i, "%s: %s", k, v)
 		i++
 	}
-	s.Show()
+	s.show()
 }
 
 func main() {
