@@ -13,28 +13,41 @@ import (
 type handlerFunc func(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error)
 
 type mockClient struct {
-	fn handlerFunc
+	fns []handlerFunc
+	i   int
 }
 
 func (m *mockClient) DescribeStackResources(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error) {
-	if m.fn == nil {
-		panic("missing function handler")
+	if m.fns == nil {
+		panic("missing function handlers")
 	}
-	return m.fn(ctx, params, optFns...)
+	if m.i >= len(m.fns) {
+		panic("too few functions defined")
+	}
+	res, err := m.fns[m.i](ctx, params, optFns...)
+	m.i++
+	return res, err
+}
+
+func (m *mockClient) assertNumFunctionsCalled(t *testing.T) {
+	if m.i != len(m.fns) {
+		t.Fatalf("too few function calls compared to setup, found %d expected %d", m.i, len(m.fns))
+	}
 }
 
 func TestFetchStatusesNoResources(t *testing.T) {
 	is := is.New(t)
 
-	client := &mockClient{
-		fn: func(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error) {
-			resources := []types.StackResource{}
-			out := &cloudformation.DescribeStackResourcesOutput{
-				StackResources: resources,
-			}
-			return out, nil
-		},
-	}
+	client := &mockClient{}
+	client.fns = append(client.fns, func(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error) {
+		resources := []types.StackResource{}
+		out := &cloudformation.DescribeStackResourcesOutput{
+			StackResources: resources,
+		}
+		return out, nil
+	})
+	defer client.assertNumFunctionsCalled(t)
+
 	fetcher := fetcher{client: client}
 	s, err := fetcher.fetchResourceStatuses(context.Background())
 	is.NoErr(err)
@@ -44,20 +57,21 @@ func TestFetchStatusesNoResources(t *testing.T) {
 func TestFetchOk(t *testing.T) {
 	is := is.New(t)
 
-	client := &mockClient{
-		fn: func(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error) {
-			resources := []types.StackResource{
-				{
-					LogicalResourceId: aws.String("Resource"),
-					ResourceStatus:    types.ResourceStatusCreateComplete,
-				},
-			}
-			out := &cloudformation.DescribeStackResourcesOutput{
-				StackResources: resources,
-			}
-			return out, nil
-		},
-	}
+	client := &mockClient{}
+	client.fns = append(client.fns, func(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error) {
+		resources := []types.StackResource{
+			{
+				LogicalResourceId: aws.String("Resource"),
+				ResourceStatus:    types.ResourceStatusCreateComplete,
+			},
+		}
+		out := &cloudformation.DescribeStackResourcesOutput{
+			StackResources: resources,
+		}
+		return out, nil
+	})
+	defer client.assertNumFunctionsCalled(t)
+
 	fetcher := fetcher{client: client}
 	s, err := fetcher.fetchResourceStatuses(context.Background())
 	is.NoErr(err)
