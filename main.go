@@ -7,12 +7,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
-	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go"
 	"github.com/jessevdk/go-flags"
+	"github.com/mindriot101/cflivestatus/fetcher"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
@@ -21,18 +20,6 @@ func fatal(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, args...)
 	os.Exit(1)
 }
-
-type stackResource struct {
-	resource string
-	status   types.ResourceStatus
-}
-
-// client is the interface that we consume from the AWS service.
-type client interface {
-	DescribeStackResources(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error)
-}
-
-type resourceStatuses map[string]types.ResourceStatus
 
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -75,17 +62,14 @@ func main() {
 		log.Err(err).Msg("error loading default config")
 	}
 
-	resourceStatuses := make(resourceStatuses)
+	resourceStatuses := fetcher.NewResourceStatuses()
 
 	svc := cloudformation.NewFromConfig(cfg)
-	fetcher := fetcher{
-		stackName: name,
-		client:    svc,
-	}
+	f := fetcher.New(name, svc)
 
 	sleepTime := 2 * time.Second
 	for {
-		if err := fetcher.updateResourceStatuses(ctx, &resourceStatuses); err != nil {
+		if err := f.UpdateResourceStatuses(ctx, resourceStatuses); err != nil {
 			var oe *smithy.GenericAPIError
 			if errors.As(err, &oe) {
 				if oe.Message == fmt.Sprintf("Stack with id %s does not exist", name) {
@@ -96,54 +80,11 @@ func main() {
 			time.Sleep(sleepTime)
 			continue
 		}
-		presentState(&resourceStatuses)
+		presentState(resourceStatuses)
 		time.Sleep(sleepTime)
 	}
 }
 
-type fetcher struct {
-	stackName string
-	client    client
-}
-
-func (f *fetcher) fetchResourceStatuses(ctx context.Context) ([]stackResource, error) {
-	params := &cloudformation.DescribeStackResourcesInput{
-		StackName: aws.String(f.stackName),
-	}
-	res, err := f.client.DescribeStackResources(ctx, params)
-	if err != nil {
-		return nil, fmt.Errorf("describing stack resources")
-	}
-
-	out := []stackResource{}
-	for _, r := range res.StackResources {
-		var resource string
-		if r.LogicalResourceId != nil {
-			resource = *r.LogicalResourceId
-		} else {
-			resource = "?"
-		}
-
-		out = append(out, stackResource{
-			resource: resource,
-			status:   r.ResourceStatus,
-		})
-	}
-
-	return out, nil
-}
-
-func (f *fetcher) updateResourceStatuses(ctx context.Context, statuses *resourceStatuses) error {
-	resources, err := f.fetchResourceStatuses(ctx)
-	if err != nil {
-		return err
-	}
-	for _, r := range resources {
-		(*statuses)[r.resource] = r.status
-	}
-	return nil
-}
-
-func presentState(statuses *resourceStatuses) {
+func presentState(statuses *fetcher.ResourceStatuses) {
 	log.Info().Interface("statuses", statuses).Msg("got statuses")
 }

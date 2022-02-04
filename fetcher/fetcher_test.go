@@ -1,4 +1,4 @@
-package main
+package fetcher
 
 import (
 	"context"
@@ -49,7 +49,7 @@ func TestFetchStatusesNoResources(t *testing.T) {
 	defer client.assertNumFunctionsCalled(t)
 
 	fetcher := fetcher{client: client}
-	s, err := fetcher.fetchResourceStatuses(context.Background())
+	s, err := fetcher.fetch(context.Background())
 	is.NoErr(err)
 	is.Equal(s, []stackResource{})
 }
@@ -73,7 +73,7 @@ func TestFetchOk(t *testing.T) {
 	defer client.assertNumFunctionsCalled(t)
 
 	fetcher := fetcher{client: client}
-	s, err := fetcher.fetchResourceStatuses(context.Background())
+	s, err := fetcher.fetch(context.Background())
 	is.NoErr(err)
 	is.Equal(s, []stackResource{
 		{
@@ -114,7 +114,7 @@ func TestFetchTwoUpdates(t *testing.T) {
 	defer client.assertNumFunctionsCalled(t)
 
 	fetcher := fetcher{client: client}
-	s, err := fetcher.fetchResourceStatuses(context.Background())
+	s, err := fetcher.fetch(context.Background())
 	is.NoErr(err)
 	is.Equal(s, []stackResource{
 		{
@@ -122,7 +122,7 @@ func TestFetchTwoUpdates(t *testing.T) {
 			status:   types.ResourceStatusCreateInProgress,
 		},
 	})
-	s, err = fetcher.fetchResourceStatuses(context.Background())
+	s, err = fetcher.fetch(context.Background())
 	is.NoErr(err)
 	is.Equal(s, []stackResource{
 		{
