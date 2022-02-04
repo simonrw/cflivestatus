@@ -89,9 +89,12 @@ func main() {
 
 	var opts struct {
 		Verbose []bool `short:"v" long:"verbose" description:"Print verbose logging output"`
+		Args    struct {
+			Name string `required:"yes" positional-arg-name:"stack-name"`
+		} `positional-args:"yes" required:"yes"`
 	}
 
-	args, err := flags.Parse(&opts)
+	_, err := flags.Parse(&opts)
 	if err != nil {
 		os.Exit(1)
 	}
@@ -107,13 +110,6 @@ func main() {
 	log.Debug().Msgf("%s starting", os.Args[0])
 	log.Debug().Interface("opts", opts).Msg("parsed command line options")
 
-	if len(args) == 0 {
-		log.Error().Msg("no stack name specified")
-		fatal("no stack name specified\n")
-	}
-	name := args[0]
-	_ = name
-
 	// TODO: update default region
 	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("eu-west-2"))
 	if err != nil {
@@ -123,7 +119,7 @@ func main() {
 	resourceStatuses := fetcher.NewResourceStatuses()
 
 	svc := cloudformation.NewFromConfig(cfg)
-	f := fetcher.New(name, svc)
+	f := fetcher.New(opts.Args.Name, svc)
 
 	sleepTime := 2 * time.Second
 
@@ -134,14 +130,14 @@ func main() {
 
 	// perform the initial fetch so we know how many resources we have to work with
 	if err := f.UpdateResourceStatuses(ctx, resourceStatuses); err != nil {
-		if handleFetchResourceError(name, err) {
+		if handleFetchResourceError(opts.Args.Name, err) {
 			fatal("error: %v\n", err)
 		}
 	}
 
 	for {
 		if err := f.UpdateResourceStatuses(ctx, resourceStatuses); err != nil {
-			if handleFetchResourceError(name, err) {
+			if handleFetchResourceError(opts.Args.Name, err) {
 				break
 			}
 
