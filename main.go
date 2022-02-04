@@ -78,6 +78,10 @@ func (s *Screen) Sync() {
 	(*s.s).Sync()
 }
 
+func (s *Screen) Clear() {
+	(*s.s).Clear()
+}
+
 func main() {
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -135,36 +139,62 @@ func main() {
 		}
 	}
 
-	for {
-		if err := f.UpdateResourceStatuses(ctx, resourceStatuses); err != nil {
-			if handleFetchResourceError(opts.Args.Name, err) {
-				break
+	// background goroutine that sends events to the main render loop
+	done := make(chan struct{})
+	go func() {
+		for {
+			ev := screen.PollEvent()
+			switch ev := ev.(type) {
+			case *tcell.EventResize:
+				screen.Sync()
+			case *tcell.EventKey:
+				switch ev.Key() {
+				case tcell.KeyCtrlC, tcell.KeyEscape:
+					close(done)
+					return
+				case tcell.KeyCtrlL:
+					screen.Sync()
+				}
 			}
+		}
+	}()
 
-			log.Warn().Err(err).Msg("error when polling stack resources")
+	// update resources goroutine
+	eventsCh := make(chan struct{})
+	go func() {
+		for {
+			if err := f.UpdateResourceStatuses(ctx, resourceStatuses); err != nil {
+				if handleFetchResourceError(opts.Args.Name, err) {
+					break
+				}
+
+				log.Warn().Err(err).Msg("error when polling stack resources")
+				time.Sleep(sleepTime)
+				continue
+			}
+			eventsCh <- struct{}{}
+
 			time.Sleep(sleepTime)
-			continue
 		}
+	}()
 
-		// render to the screen
-		i := 0
-		for k, v := range *resourceStatuses {
-			screen.Write(i, "%s: %s", k, v)
+	for {
+		select {
+		case <-done:
+			screen.Quit()
+			return
+		case <-eventsCh:
+			screen.Clear()
+			i := 0
+			now := time.Now()
+			screen.Write(i, "%s", now)
 			i++
-		}
-
-		screen.Show()
-
-		ev := screen.PollEvent()
-		switch ev := ev.(type) {
-		case *tcell.EventResize:
-			screen.Sync()
-		case *tcell.EventKey:
-			if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
-				screen.Quit()
+			for k, v := range *resourceStatuses {
+				screen.Write(i, "%s: %s", k, v)
+				i++
 			}
+			screen.Show()
 		}
-		time.Sleep(sleepTime)
 	}
 }
 
