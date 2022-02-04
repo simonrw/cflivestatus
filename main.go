@@ -22,6 +22,11 @@ func fatal(format string, args ...interface{}) {
 	os.Exit(1)
 }
 
+type stackResource struct {
+	resource string
+	status   types.ResourceStatus
+}
+
 // client is the interface that we consume from the AWS service.
 type client interface {
 	DescribeStackResources(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error)
@@ -76,8 +81,7 @@ func main() {
 
 	sleepTime := 2 * time.Second
 	for {
-		res, err := fetchResourceStatuses(ctx, name, svc)
-		if err != nil {
+		if err := updateResourceStatuses(ctx, name, svc, &resourceStatuses); err != nil {
 			var oe *smithy.GenericAPIError
 			if errors.As(err, &oe) {
 				if oe.Message == fmt.Sprintf("Stack with id %s does not exist", name) {
@@ -88,26 +92,47 @@ func main() {
 			time.Sleep(sleepTime)
 			continue
 		}
-		log.Debug().Interface("res", *res).Msg("got result")
-		updateState(&resourceStatuses, res)
 		presentState(&resourceStatuses)
 		time.Sleep(sleepTime)
 	}
 }
 
-func fetchResourceStatuses(ctx context.Context, stackName string, client client) (*cloudformation.DescribeStackResourcesOutput, error) {
+func fetchResourceStatuses(ctx context.Context, stackName string, client client) ([]stackResource, error) {
 	params := &cloudformation.DescribeStackResourcesInput{
 		StackName: aws.String(stackName),
 	}
-	return client.DescribeStackResources(ctx, params)
+	res, err := client.DescribeStackResources(ctx, params)
+	if err != nil {
+		return nil, fmt.Errorf("describing stack resources")
+	}
+
+	out := []stackResource{}
+	for _, r := range res.StackResources {
+		var resource string
+		if r.LogicalResourceId != nil {
+			resource = *r.LogicalResourceId
+		} else {
+			resource = "?"
+		}
+
+		out = append(out, stackResource{
+			resource: resource,
+			status:   r.ResourceStatus,
+		})
+	}
+
+	return out, nil
 }
 
-func updateState(statuses *resourceStatuses, res *cloudformation.DescribeStackResourcesOutput) {
-	for _, resource := range res.StackResources {
-		logicalName := resource.LogicalResourceId
-		status := resource.ResourceStatus
-		(*statuses)[*logicalName] = status
+func updateResourceStatuses(ctx context.Context, stackName string, client client, statuses *resourceStatuses) error {
+	resources, err := fetchResourceStatuses(ctx, stackName, client)
+	if err != nil {
+		return err
 	}
+	for _, r := range resources {
+		(*statuses)[r.resource] = r.status
+	}
+	return nil
 }
 
 func presentState(statuses *resourceStatuses) {
