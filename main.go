@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -82,12 +83,22 @@ func (s *Screen) clear() {
 	(*s.s).Clear()
 }
 
+// sort interface
+type byName []fetcher.StackResource
+
+func (n byName) Len() int           { return len(n) }
+func (n byName) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
+func (n byName) Less(i, j int) bool { return n[i].Resource < n[j].Resource }
+
 func (s *Screen) Render(statuses []fetcher.StackResource) {
 	s.clear()
 	i := 0
 	now := time.Now()
 	s.write(i, "%s", now)
 	i++
+
+	sort.Sort(byName(statuses))
+
 	for _, r := range statuses {
 		s.write(i, "%s: %s", r.Resource, r.Status)
 		i++
