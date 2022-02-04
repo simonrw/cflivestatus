@@ -35,7 +35,8 @@ func TestFetchStatusesNoResources(t *testing.T) {
 			return out, nil
 		},
 	}
-	s, err := fetchResourceStatuses(context.Background(), "", client)
+	fetcher := fetcher{client: client}
+	s, err := fetcher.fetchResourceStatuses(context.Background())
 	is.NoErr(err)
 	is.Equal(s, []stackResource{})
 }
@@ -57,7 +58,8 @@ func TestFetchOk(t *testing.T) {
 			return out, nil
 		},
 	}
-	s, err := fetchResourceStatuses(context.Background(), "", client)
+	fetcher := fetcher{client: client}
+	s, err := fetcher.fetchResourceStatuses(context.Background())
 	is.NoErr(err)
 	is.Equal(s, []stackResource{
 		{

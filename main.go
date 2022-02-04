@@ -78,10 +78,14 @@ func main() {
 	resourceStatuses := make(resourceStatuses)
 
 	svc := cloudformation.NewFromConfig(cfg)
+	fetcher := fetcher{
+		stackName: name,
+		client:    svc,
+	}
 
 	sleepTime := 2 * time.Second
 	for {
-		if err := updateResourceStatuses(ctx, name, svc, &resourceStatuses); err != nil {
+		if err := fetcher.updateResourceStatuses(ctx, &resourceStatuses); err != nil {
 			var oe *smithy.GenericAPIError
 			if errors.As(err, &oe) {
 				if oe.Message == fmt.Sprintf("Stack with id %s does not exist", name) {
@@ -97,11 +101,16 @@ func main() {
 	}
 }
 
-func fetchResourceStatuses(ctx context.Context, stackName string, client client) ([]stackResource, error) {
+type fetcher struct {
+	stackName string
+	client    client
+}
+
+func (f *fetcher) fetchResourceStatuses(ctx context.Context) ([]stackResource, error) {
 	params := &cloudformation.DescribeStackResourcesInput{
-		StackName: aws.String(stackName),
+		StackName: aws.String(f.stackName),
 	}
-	res, err := client.DescribeStackResources(ctx, params)
+	res, err := f.client.DescribeStackResources(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("describing stack resources")
 	}
@@ -124,8 +133,8 @@ func fetchResourceStatuses(ctx context.Context, stackName string, client client)
 	return out, nil
 }
 
-func updateResourceStatuses(ctx context.Context, stackName string, client client, statuses *resourceStatuses) error {
-	resources, err := fetchResourceStatuses(ctx, stackName, client)
+func (f *fetcher) updateResourceStatuses(ctx context.Context, statuses *resourceStatuses) error {
+	resources, err := f.fetchResourceStatuses(ctx)
 	if err != nil {
 		return err
 	}
