@@ -82,6 +82,19 @@ func (s *Screen) Clear() {
 	(*s.s).Clear()
 }
 
+func (s *Screen) Render(statuses *fetcher.ResourceStatuses) {
+	s.Clear()
+	i := 0
+	now := time.Now()
+	s.Write(i, "%s", now)
+	i++
+	for k, v := range *statuses {
+		s.Write(i, "%s: %s", k, v)
+		i++
+	}
+	s.Show()
+}
+
 func main() {
 
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -184,16 +197,7 @@ func main() {
 			screen.Quit()
 			return
 		case <-eventsCh:
-			screen.Clear()
-			i := 0
-			now := time.Now()
-			screen.Write(i, "%s", now)
-			i++
-			for k, v := range *resourceStatuses {
-				screen.Write(i, "%s: %s", k, v)
-				i++
-			}
-			screen.Show()
+			screen.Render(resourceStatuses)
 		}
 	}
 }
