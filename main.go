@@ -10,18 +10,76 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/smithy-go"
+	"github.com/gdamore/tcell/v2"
 	"github.com/jessevdk/go-flags"
 	"github.com/mindriot101/cflivestatus/fetcher"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
+var defStyle = tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorReset)
+
 func fatal(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, args...)
 	os.Exit(1)
 }
 
+type Screen struct {
+	s *tcell.Screen
+}
+
+func NewScreen() (*Screen, error) {
+	s, err := tcell.NewScreen()
+	if err != nil {
+		return nil, fmt.Errorf("creating screen: %w", err)
+	}
+	if err := s.Init(); err != nil {
+		return nil, fmt.Errorf("initialising screen: %w", err)
+	}
+	s.SetStyle(defStyle)
+	s.Clear()
+
+	return &Screen{s: &s}, nil
+}
+
+func (s *Screen) Write(line int, format string, args ...interface{}) {
+	row := line
+	col := 0
+	text := fmt.Sprintf(format, args...)
+	runes := []rune(text)
+	x2 := col + len(runes)
+	for _, r := range runes {
+		(*s.s).SetContent(col, row, r, nil, defStyle)
+		col++
+		if col > x2 {
+			row++
+			col = 0
+		}
+		if row > line {
+			break
+		}
+	}
+}
+
+func (s *Screen) Quit() {
+	(*s.s).Fini()
+	os.Exit(0)
+}
+
+func (s *Screen) Show() {
+	(*s.s).Show()
+}
+
+func (s *Screen) PollEvent() tcell.Event {
+	return (*s.s).PollEvent()
+}
+
+func (s *Screen) Sync() {
+	(*s.s).Sync()
+}
+
 func main() {
+
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 	log.Logger = log.Output(zerolog.ConsoleWriter{
 		Out: os.Stderr,
@@ -68,23 +126,63 @@ func main() {
 	f := fetcher.New(name, svc)
 
 	sleepTime := 2 * time.Second
+
+	screen, err := NewScreen()
+	if err != nil {
+		panic(err)
+	}
+
+	// perform the initial fetch so we know how many resources we have to work with
+	if err := f.UpdateResourceStatuses(ctx, resourceStatuses); err != nil {
+		if handleFetchResourceError(name, err) {
+			fatal("error: %v\n", err)
+		}
+	}
+
 	for {
 		if err := f.UpdateResourceStatuses(ctx, resourceStatuses); err != nil {
-			var oe *smithy.GenericAPIError
-			if errors.As(err, &oe) {
-				if oe.Message == fmt.Sprintf("Stack with id %s does not exist", name) {
-					fatal("cannot find stack %s\n", name)
-				}
+			if handleFetchResourceError(name, err) {
+				break
 			}
+
 			log.Warn().Err(err).Msg("error when polling stack resources")
 			time.Sleep(sleepTime)
 			continue
 		}
-		presentState(resourceStatuses)
+
+		// render to the screen
+		i := 0
+		for k, v := range *resourceStatuses {
+			screen.Write(i, "%s: %s", k, v)
+			i++
+		}
+
+		screen.Show()
+
+		ev := screen.PollEvent()
+		switch ev := ev.(type) {
+		case *tcell.EventResize:
+			screen.Sync()
+		case *tcell.EventKey:
+			if ev.Key() == tcell.KeyEscape || ev.Key() == tcell.KeyCtrlC {
+				screen.Quit()
+			}
+		}
 		time.Sleep(sleepTime)
 	}
 }
 
-func presentState(statuses *fetcher.ResourceStatuses) {
-	log.Info().Interface("statuses", statuses).Msg("got statuses")
+// handleFetchResourceError returns whether the loop should break or not,
+// given the error supplied
+func handleFetchResourceError(name string, err error) bool {
+	if err == nil {
+		return false
+	}
+	var oe *smithy.GenericAPIError
+	if errors.As(err, &oe) {
+		if oe.Message == fmt.Sprintf("Stack with id %s does not exist", name) {
+			return true
+		}
+	}
+	return true
 }
