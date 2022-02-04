@@ -20,7 +20,7 @@ func New(stackName string, client client) *fetcher {
 	}
 }
 
-func (f *fetcher) fetch(ctx context.Context) ([]stackResource, error) {
+func (f *fetcher) Fetch(ctx context.Context) ([]StackResource, error) {
 	params := &cloudformation.DescribeStackResourcesInput{
 		StackName: aws.String(f.stackName),
 	}
@@ -29,7 +29,7 @@ func (f *fetcher) fetch(ctx context.Context) ([]stackResource, error) {
 		return nil, fmt.Errorf("describing stack resources")
 	}
 
-	out := []stackResource{}
+	out := []StackResource{}
 	for _, r := range res.StackResources {
 		var resource string
 		if r.LogicalResourceId != nil {
@@ -38,22 +38,11 @@ func (f *fetcher) fetch(ctx context.Context) ([]stackResource, error) {
 			resource = "?"
 		}
 
-		out = append(out, stackResource{
-			resource: resource,
-			status:   r.ResourceStatus,
+		out = append(out, StackResource{
+			Resource: resource,
+			Status:   r.ResourceStatus,
 		})
 	}
 
 	return out, nil
-}
-
-func (f *fetcher) UpdateResourceStatuses(ctx context.Context, statuses *ResourceStatuses) error {
-	resources, err := f.fetch(ctx)
-	if err != nil {
-		return err
-	}
-	for _, r := range resources {
-		(*statuses)[r.resource] = r.status
-	}
-	return nil
 }

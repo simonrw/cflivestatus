@@ -48,13 +48,11 @@ func TestFetchStatusesNoResources(t *testing.T) {
 	})
 	defer client.assertNumFunctionsCalled(t)
 
-	statuses := NewResourceStatuses()
-
 	fetcher := fetcher{client: client}
 
-	err := fetcher.UpdateResourceStatuses(context.Background(), statuses)
+	res, err := fetcher.Fetch(context.Background())
 	is.NoErr(err)
-	is.Equal(*statuses, ResourceStatuses{})
+	is.Equal(res, []StackResource{})
 }
 
 func TestFetchOk(t *testing.T) {
@@ -75,12 +73,14 @@ func TestFetchOk(t *testing.T) {
 	})
 	defer client.assertNumFunctionsCalled(t)
 
-	statuses := NewResourceStatuses()
 	fetcher := fetcher{client: client}
-	err := fetcher.UpdateResourceStatuses(context.Background(), statuses)
+	res, err := fetcher.Fetch(context.Background())
 	is.NoErr(err)
-	is.Equal(*statuses, ResourceStatuses{
-		"Resource": types.ResourceStatusCreateComplete,
+	is.Equal(res, []StackResource{
+		{
+			Resource: "Resource",
+			Status:   types.ResourceStatusCreateComplete,
+		},
 	})
 }
 
@@ -114,17 +114,22 @@ func TestFetchTwoUpdates(t *testing.T) {
 	})
 	defer client.assertNumFunctionsCalled(t)
 
-	statuses := NewResourceStatuses()
 	fetcher := fetcher{client: client}
-	err := fetcher.UpdateResourceStatuses(context.Background(), statuses)
+	res, err := fetcher.Fetch(context.Background())
 	is.NoErr(err)
-	is.Equal(*statuses, ResourceStatuses{
-		"Resource": types.ResourceStatusCreateInProgress,
+	is.Equal(res, []StackResource{
+		{
+			Resource: "Resource",
+			Status:   types.ResourceStatusCreateInProgress,
+		},
 	})
 
-	err = fetcher.UpdateResourceStatuses(context.Background(), statuses)
+	res, err = fetcher.Fetch(context.Background())
 	is.NoErr(err)
-	is.Equal(*statuses, ResourceStatuses{
-		"Resource": types.ResourceStatusCreateComplete,
+	is.Equal(res, []StackResource{
+		{
+			Resource: "Resource",
+			Status:   types.ResourceStatusCreateComplete,
+		},
 	})
 }

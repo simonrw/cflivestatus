@@ -82,14 +82,14 @@ func (s *Screen) clear() {
 	(*s.s).Clear()
 }
 
-func (s *Screen) Render(statuses *fetcher.ResourceStatuses) {
+func (s *Screen) Render(statuses []fetcher.StackResource) {
 	s.clear()
 	i := 0
 	now := time.Now()
 	s.write(i, "%s", now)
 	i++
-	for k, v := range *statuses {
-		s.write(i, "%s: %s", k, v)
+	for _, r := range statuses {
+		s.write(i, "%s: %s", r.Resource, r.Status)
 		i++
 	}
 	s.show()
@@ -133,8 +133,6 @@ func main() {
 		log.Err(err).Msg("error loading default config")
 	}
 
-	resourceStatuses := fetcher.NewResourceStatuses()
-
 	svc := cloudformation.NewFromConfig(cfg)
 	f := fetcher.New(opts.Args.Name, svc)
 
@@ -145,12 +143,25 @@ func main() {
 		panic(err)
 	}
 
-	// perform the initial fetch so we know how many resources we have to work with
-	if err := f.UpdateResourceStatuses(ctx, resourceStatuses); err != nil {
-		if handleFetchResourceError(opts.Args.Name, err) {
-			fatal("error: %v\n", err)
+	// update resources goroutine
+	eventsCh := make(chan []fetcher.StackResource)
+	go func() {
+		for {
+			resources, err := f.Fetch(ctx)
+			if err != nil {
+				if handleFetchResourceError(opts.Args.Name, err) {
+					break
+				}
+
+				log.Warn().Err(err).Msg("error when polling stack resources")
+				time.Sleep(sleepTime)
+				continue
+			}
+			eventsCh <- resources
+
+			time.Sleep(sleepTime)
 		}
-	}
+	}()
 
 	// background goroutine that sends events to the main render loop
 	done := make(chan struct{})
@@ -172,32 +183,13 @@ func main() {
 		}
 	}()
 
-	// update resources goroutine
-	eventsCh := make(chan struct{})
-	go func() {
-		for {
-			if err := f.UpdateResourceStatuses(ctx, resourceStatuses); err != nil {
-				if handleFetchResourceError(opts.Args.Name, err) {
-					break
-				}
-
-				log.Warn().Err(err).Msg("error when polling stack resources")
-				time.Sleep(sleepTime)
-				continue
-			}
-			eventsCh <- struct{}{}
-
-			time.Sleep(sleepTime)
-		}
-	}()
-
 	for {
 		select {
 		case <-done:
 			screen.Quit()
 			return
-		case <-eventsCh:
-			screen.Render(resourceStatuses)
+		case res := <-eventsCh:
+			screen.Render(res)
 		}
 	}
 }
