@@ -82,3 +82,52 @@ func TestFetchOk(t *testing.T) {
 		},
 	})
 }
+
+func TestFetchTwoUpdates(t *testing.T) {
+	is := is.New(t)
+
+	client := &mockClient{}
+	client.fns = append(client.fns, func(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error) {
+		resources := []types.StackResource{
+			{
+				LogicalResourceId: aws.String("Resource"),
+				ResourceStatus:    types.ResourceStatusCreateInProgress,
+			},
+		}
+		out := &cloudformation.DescribeStackResourcesOutput{
+			StackResources: resources,
+		}
+		return out, nil
+	})
+	client.fns = append(client.fns, func(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error) {
+		resources := []types.StackResource{
+			{
+				LogicalResourceId: aws.String("Resource"),
+				ResourceStatus:    types.ResourceStatusCreateComplete,
+			},
+		}
+		out := &cloudformation.DescribeStackResourcesOutput{
+			StackResources: resources,
+		}
+		return out, nil
+	})
+	defer client.assertNumFunctionsCalled(t)
+
+	fetcher := fetcher{client: client}
+	s, err := fetcher.fetchResourceStatuses(context.Background())
+	is.NoErr(err)
+	is.Equal(s, []stackResource{
+		{
+			resource: "Resource",
+			status:   types.ResourceStatusCreateInProgress,
+		},
+	})
+	s, err = fetcher.fetchResourceStatuses(context.Background())
+	is.NoErr(err)
+	is.Equal(s, []stackResource{
+		{
+			resource: "Resource",
+			status:   types.ResourceStatusCreateComplete,
+		},
+	})
+}
