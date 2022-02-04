@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"time"
@@ -10,6 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	"github.com/aws/smithy-go"
 	"github.com/jessevdk/go-flags"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -22,6 +24,7 @@ func fatal(format string, args ...interface{}) {
 
 // client is the interface that we consume from the AWS service.
 type client interface {
+	DescribeStackResources(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error)
 }
 
 type resourceStatuses map[string]types.ResourceStatus
@@ -40,7 +43,6 @@ func main() {
 
 	args, err := flags.Parse(&opts)
 	if err != nil {
-		// log.Error().Msg("command line arguments invalid")
 		os.Exit(1)
 	}
 	switch len(opts.Verbose) {
@@ -73,12 +75,15 @@ func main() {
 	svc := cloudformation.NewFromConfig(cfg)
 
 	sleepTime := 2 * time.Second
-	params := &cloudformation.DescribeStackResourcesInput{
-		StackName: aws.String(name),
-	}
 	for {
-		res, err := svc.DescribeStackResources(ctx, params)
+		res, err := fetchResourceStatuses(ctx, name, svc)
 		if err != nil {
+			var oe *smithy.GenericAPIError
+			if errors.As(err, &oe) {
+				if oe.Message == fmt.Sprintf("Stack with id %s does not exist", name) {
+					fatal("cannot find stack %s\n", name)
+				}
+			}
 			log.Warn().Err(err).Msg("error when polling stack resources")
 			time.Sleep(sleepTime)
 			continue
@@ -88,6 +93,13 @@ func main() {
 		presentState(&resourceStatuses)
 		time.Sleep(sleepTime)
 	}
+}
+
+func fetchResourceStatuses(ctx context.Context, stackName string, client client) (*cloudformation.DescribeStackResourcesOutput, error) {
+	params := &cloudformation.DescribeStackResourcesInput{
+		StackName: aws.String(stackName),
+	}
+	return client.DescribeStackResources(ctx, params)
 }
 
 func updateState(statuses *resourceStatuses, res *cloudformation.DescribeStackResourcesOutput) {
