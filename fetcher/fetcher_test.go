@@ -133,3 +133,35 @@ func TestFetchTwoUpdates(t *testing.T) {
 		},
 	})
 }
+
+func TestFailure(t *testing.T) {
+	is := is.New(t)
+
+	client := &mockClient{}
+	client.fns = append(client.fns, func(ctx context.Context, params *cloudformation.DescribeStackResourcesInput, optFns ...func(*cloudformation.Options)) (*cloudformation.DescribeStackResourcesOutput, error) {
+		resources := []types.StackResource{
+			{
+				LogicalResourceId:    aws.String("Resource"),
+				ResourceStatus:       types.ResourceStatusCreateFailed,
+				ResourceStatusReason: aws.String("failure"),
+			},
+		}
+		out := &cloudformation.DescribeStackResourcesOutput{
+			StackResources: resources,
+		}
+		return out, nil
+	})
+	defer client.assertNumFunctionsCalled(t)
+
+	fetcher := fetcher{client: client}
+	res, err := fetcher.Fetch(context.Background())
+	is.NoErr(err)
+	is.Equal(res, []StackResource{
+		{
+			Resource: "Resource",
+			Status:   types.ResourceStatusCreateFailed,
+			Reason:   "failure",
+		},
+	})
+
+}

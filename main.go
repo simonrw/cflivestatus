@@ -174,6 +174,8 @@ func main() {
 		}
 	}()
 
+	<-eventsCh
+
 	// background goroutine that sends events to the main render loop
 	done := make(chan struct{})
 	go func() {

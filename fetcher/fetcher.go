@@ -31,16 +31,19 @@ func (f *fetcher) Fetch(ctx context.Context) ([]StackResource, error) {
 
 	out := []StackResource{}
 	for _, r := range res.StackResources {
-		var resource string
+		resource := ""
 		if r.LogicalResourceId != nil {
 			resource = *r.LogicalResourceId
-		} else {
-			resource = "?"
+		}
+		reason := ""
+		if r.ResourceStatusReason != nil {
+			reason = *r.ResourceStatusReason
 		}
 
 		out = append(out, StackResource{
 			Resource: resource,
 			Status:   r.ResourceStatus,
+			Reason:   reason,
 		})
 	}
 
