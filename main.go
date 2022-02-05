@@ -90,6 +90,19 @@ func (n byName) Len() int           { return len(n) }
 func (n byName) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
 func (n byName) Less(i, j int) bool { return n[i].Resource < n[j].Resource }
 
+func longestResourceName(res []fetcher.StackResource) int {
+	if len(res) == 0 {
+		return 0
+	}
+	m := len(res[0].Resource)
+	for _, r := range res {
+		if len(r.Resource) > m {
+			m = len(r.Resource)
+		}
+	}
+	return m
+}
+
 func (s *Screen) Render(statuses []fetcher.StackResource) {
 	s.clear()
 	i := 0
@@ -98,12 +111,15 @@ func (s *Screen) Render(statuses []fetcher.StackResource) {
 	i++
 
 	sort.Sort(byName(statuses))
+	nameLength := longestResourceName(statuses)
 
 	for _, r := range statuses {
 		if r.Reason != "" {
-			s.write(i, "%s: %s (%s)", r.Resource, r.Status, r.Reason)
+			fs := fmt.Sprintf("%%%ds: %%s (%%s)", nameLength)
+			s.write(i, fs, r.Resource, r.Status, r.Reason)
 		} else {
-			s.write(i, "%s: %s", r.Resource, r.Status)
+			fs := fmt.Sprintf("%%%ds: %%s", nameLength)
+			s.write(i, fs, r.Resource, r.Status)
 		}
 		i++
 	}
