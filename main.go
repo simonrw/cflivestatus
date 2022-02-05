@@ -10,6 +10,7 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go"
 	"github.com/gdamore/tcell/v2"
 	"github.com/jessevdk/go-flags"
@@ -19,6 +20,9 @@ import (
 )
 
 var defStyle = tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorReset)
+var okStyle = tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorGreen)
+var updatingStyle = tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorBlue)
+var failedStyle = tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorRed)
 
 func fatal(format string, args ...interface{}) {
 	fmt.Fprintf(os.Stderr, format, args...)
@@ -43,14 +47,14 @@ func NewScreen() (*Screen, error) {
 	return &Screen{s: &s}, nil
 }
 
-func (s *Screen) write(line int, format string, args ...interface{}) {
+func (s *Screen) write(line int, style tcell.Style, format string, args ...interface{}) {
 	row := line
 	col := 0
 	text := fmt.Sprintf(format, args...)
 	runes := []rune(text)
 	x2 := col + len(runes)
 	for _, r := range runes {
-		(*s.s).SetContent(col, row, r, nil, defStyle)
+		(*s.s).SetContent(col, row, r, nil, style)
 		col++
 		if col > x2 {
 			row++
@@ -107,7 +111,7 @@ func (s *Screen) Render(statuses []fetcher.StackResource) {
 	s.clear()
 	i := 0
 	now := time.Now()
-	s.write(i, "%s", now)
+	s.write(i, defStyle, "%s", now)
 	i++
 
 	sort.Sort(byName(statuses))
@@ -116,14 +120,38 @@ func (s *Screen) Render(statuses []fetcher.StackResource) {
 	for _, r := range statuses {
 		if r.Reason != "" {
 			fs := fmt.Sprintf("%%%ds: %%s (%%s)", nameLength)
-			s.write(i, fs, r.Resource, r.Status, r.Reason)
+			s.write(i, resourceStyle(r.Status), fs, r.Resource, r.Status, r.Reason)
 		} else {
 			fs := fmt.Sprintf("%%%ds: %%s", nameLength)
-			s.write(i, fs, r.Resource, r.Status)
+			s.write(i, resourceStyle(r.Status), fs, r.Resource, r.Status)
 		}
 		i++
 	}
 	s.show()
+}
+
+func resourceStyle(status types.ResourceStatus) tcell.Style {
+	var style tcell.Style
+	switch status {
+	case types.ResourceStatusCreateComplete,
+		types.ResourceStatusUpdateComplete,
+		types.ResourceStatusDeleteComplete,
+		types.ResourceStatusRollbackComplete:
+		style = okStyle
+	case types.ResourceStatusCreateInProgress,
+		types.ResourceStatusUpdateInProgress,
+		types.ResourceStatusDeleteInProgress,
+		types.ResourceStatusRollbackInProgress:
+		style = updatingStyle
+	case types.ResourceStatusCreateFailed,
+		types.ResourceStatusUpdateFailed,
+		types.ResourceStatusDeleteFailed,
+		types.ResourceStatusRollbackFailed:
+		style = failedStyle
+	default:
+		style = defStyle
+	}
+	return style
 }
 
 func main() {
