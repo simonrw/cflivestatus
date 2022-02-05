@@ -100,7 +100,11 @@ func (s *Screen) Render(statuses []fetcher.StackResource) {
 	sort.Sort(byName(statuses))
 
 	for _, r := range statuses {
-		s.write(i, "%s: %s", r.Resource, r.Status)
+		if r.Reason != "" {
+			s.write(i, "%s: %s (%s)", r.Resource, r.Status, r.Reason)
+		} else {
+			s.write(i, "%s: %s", r.Resource, r.Status)
+		}
 		i++
 	}
 	s.show()
