@@ -2,6 +2,15 @@
 repos:
   - repo: local
     hooks:
+      - id: yamllint
+        name: Lint yaml files
+        entry: yamllint --no-warnings
+        language: system
+        pass_filenames: true
+        stages:
+          - commit
+        types:
+          - yaml
       - id: go test
         name: go test
         entry: go test ./...
@@ -13,4 +22,5 @@ repos:
           - commit
         types:
           - go
+
 fail_fast: true
