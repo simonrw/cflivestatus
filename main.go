@@ -111,7 +111,7 @@ func (s *Screen) Render(statuses []fetcher.StackResource) {
 	s.clear()
 	i := 0
 	now := time.Now()
-	s.write(i, defStyle, "%s", now)
+	s.write(i, defStyle, "%s", now.Format(time.RFC1123Z))
 	i++
 
 	sort.Sort(byName(statuses))
