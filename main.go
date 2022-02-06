@@ -204,7 +204,7 @@ func main() {
 			resources, err := f.Fetch(ctx)
 			if err != nil {
 				if handleFetchResourceError(opts.Args.Name, err) {
-					break
+					log.Fatal().Err(err).Msg("a fatal error occurred")
 				}
 
 				log.Warn().Err(err).Msg("error when polling stack resources")
