@@ -197,11 +197,6 @@ func main() {
 
 	sleepTime := 2 * time.Second
 
-	screen, err := NewScreen()
-	if err != nil {
-		panic(err)
-	}
-
 	// update resources goroutine
 	eventsCh := make(chan []fetcher.StackResource)
 	go func() {
@@ -223,6 +218,11 @@ func main() {
 	}()
 
 	<-eventsCh
+
+	screen, err := NewScreen()
+	if err != nil {
+		panic(err)
+	}
 
 	// background goroutine that sends events to the main render loop
 	done := make(chan struct{})
