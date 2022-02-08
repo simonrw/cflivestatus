@@ -26,7 +26,7 @@ func (f *fetcher) Fetch(ctx context.Context) ([]StackResource, error) {
 	}
 	res, err := f.client.DescribeStackResources(ctx, params)
 	if err != nil {
-		return nil, fmt.Errorf("describing stack resources")
+		return nil, fmt.Errorf("describing stack resources: %w", err)
 	}
 
 	out := []StackResource{}
