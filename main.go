@@ -164,8 +164,9 @@ func main() {
 	ctx := context.TODO()
 
 	var opts struct {
-		Verbose []bool `short:"v" long:"verbose" description:"Print verbose logging output"`
-		Args    struct {
+		SleepTime time.Duration `short:"s" long:"sleep-time" required:"no" default:"0"`
+		Verbose   []bool        `short:"v" long:"verbose" description:"Print verbose logging output"`
+		Args      struct {
 			Name string `required:"yes" positional-arg-name:"stack-name"`
 		} `positional-args:"yes" required:"yes"`
 	}
@@ -195,8 +196,6 @@ func main() {
 	svc := cloudformation.NewFromConfig(cfg)
 	f := fetcher.New(opts.Args.Name, svc)
 
-	sleepTime := 2 * time.Second
-
 	// update resources goroutine
 	eventsCh := make(chan []fetcher.StackResource)
 	go func() {
@@ -208,12 +207,12 @@ func main() {
 				}
 
 				log.Warn().Err(err).Msg("error when polling stack resources")
-				time.Sleep(sleepTime)
+				time.Sleep(opts.SleepTime)
 				continue
 			}
 			eventsCh <- resources
 
-			time.Sleep(sleepTime)
+			time.Sleep(opts.SleepTime)
 		}
 	}()
 
