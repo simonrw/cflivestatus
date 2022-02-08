@@ -187,7 +187,7 @@ func main() {
 	log.Debug().Interface("opts", opts).Msg("parsed command line options")
 
 	// TODO: update default region
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("eu-west-2"))
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		log.Err(err).Msg("error loading default config")
 	}
