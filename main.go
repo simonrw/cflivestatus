@@ -24,11 +24,6 @@ var okStyle = tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.C
 var updatingStyle = tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorBlue)
 var failedStyle = tcell.StyleDefault.Background(tcell.ColorReset).Foreground(tcell.ColorRed)
 
-func fatal(format string, args ...interface{}) {
-	fmt.Fprintf(os.Stderr, format, args...)
-	os.Exit(1)
-}
-
 type Screen struct {
 	s *tcell.Screen
 }
