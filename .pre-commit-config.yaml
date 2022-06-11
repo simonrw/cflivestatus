@@ -2,25 +2,25 @@
 repos:
   - repo: local
     hooks:
-      - id: yamllint
-        name: Lint yaml files
-        entry: yamllint --no-warnings
+      - id: go vet
+        name: go vet
+        entry: go vet ./...
         language: system
-        pass_filenames: true
-        stages:
-          - commit
+        pass_filenames: false
         types:
-          - yaml
+          - go
+      - id: staticcheck
+        name: staticcheck
+        entry: staticcheck ./...
+        language: system
+        pass_filenames: false
+        types:
+          - go
       - id: go test
         name: go test
         entry: go test ./...
         language: system
-        always_run: false
-        verbose: false
         pass_filenames: false
-        stages:
-          - commit
         types:
           - go
-
 fail_fast: true
