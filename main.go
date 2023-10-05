@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
@@ -159,9 +160,10 @@ func main() {
 	ctx := context.TODO()
 
 	var opts struct {
-		SleepTime time.Duration `short:"s" long:"sleep-time" required:"no" default:"0"`
-		Verbose   []bool        `short:"v" long:"verbose" description:"Print verbose logging output"`
-		Args      struct {
+		EndpointURL string        `long:"endpoint-url" required:"no"`
+		SleepTime   time.Duration `short:"s" long:"sleep-time" required:"no" default:"0"`
+		Verbose     []bool        `short:"v" long:"verbose" description:"Print verbose logging output"`
+		Args        struct {
 			Name string `required:"yes" positional-arg-name:"stack-name"`
 		} `positional-args:"yes" required:"yes"`
 	}
@@ -183,7 +185,20 @@ func main() {
 	log.Debug().Interface("opts", opts).Msg("parsed command line options")
 
 	// TODO: update default region
-	cfg, err := config.LoadDefaultConfig(ctx)
+
+	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
+		if opts.EndpointURL != "" {
+			return aws.Endpoint{
+				PartitionID: "aws",
+				URL:         opts.EndpointURL,
+			}, nil
+		}
+
+		// returning EndpointNotFoundError will allow the service to fallback to its default resolution
+		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
+	})
+
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithEndpointResolverWithOptions(customResolver))
 	if err != nil {
 		log.Err(err).Msg("error loading default config")
 	}
