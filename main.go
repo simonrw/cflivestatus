@@ -8,11 +8,9 @@ import (
 	"sort"
 	"time"
 
-	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
-	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/smithy-go"
 	"github.com/gdamore/tcell/v2"
 	"github.com/jessevdk/go-flags"
@@ -188,19 +186,6 @@ func main() {
 	if err != nil {
 		log.Err(err).Msg("error loading default config")
 	}
-
-    // get caller identity
-    stsClient := sts.NewFromConfig(cfg)
-    r, err := stsClient.GetCallerIdentity(context.TODO(), &sts.GetCallerIdentityInput{})
-    if err != nil {
-        log.Err(err).Msg("getting caller identity")
-    }
-	fmt.Printf(
-		"Account: %s\nUserID: %s\nARN: %s\n",
-		aws.ToString(r.Account),
-		aws.ToString(r.UserId),
-		aws.ToString(r.Arn),
-	)
 
 	svc := cloudformation.NewFromConfig(cfg)
 	f := fetcher.New(opts.Args.Name, svc)
