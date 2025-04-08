@@ -6,28 +6,24 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Returns summary information about stack sets that are associated with the
-// user.
+// Returns summary information about stack sets that are associated with the user.
 //
-// * [Self-managed permissions] If you set the CallAs parameter to SELF
-// while signed in to your Amazon Web Services account, ListStackSets returns all
-// self-managed stack sets in your Amazon Web Services account.
+//   - [Self-managed permissions] If you set the CallAs parameter to SELF while
+//     signed in to your Amazon Web Services account, ListStackSets returns all
+//     self-managed stack sets in your Amazon Web Services account.
 //
-// * [Service-managed
-// permissions] If you set the CallAs parameter to SELF while signed in to the
-// organization's management account, ListStackSets returns all stack sets in the
-// management account.
+//   - [Service-managed permissions] If you set the CallAs parameter to SELF while
+//     signed in to the organization's management account, ListStackSets returns all
+//     stack sets in the management account.
 //
-// * [Service-managed permissions] If you set the CallAs
-// parameter to DELEGATED_ADMIN while signed in to your member account,
-// ListStackSets returns all stack sets with service-managed permissions in the
-// management account.
+//   - [Service-managed permissions] If you set the CallAs parameter to
+//     DELEGATED_ADMIN while signed in to your member account, ListStackSets returns
+//     all stack sets with service-managed permissions in the management account.
 func (c *Client) ListStackSets(ctx context.Context, params *ListStackSetsInput, optFns ...func(*Options)) (*ListStackSetsOutput, error) {
 	if params == nil {
 		params = &ListStackSetsInput{}
@@ -47,31 +43,34 @@ type ListStackSetsInput struct {
 
 	// [Service-managed permissions] Specifies whether you are acting as an account
 	// administrator in the management account or as a delegated administrator in a
-	// member account. By default, SELF is specified. Use SELF for stack sets with
-	// self-managed permissions.
+	// member account.
 	//
-	// * If you are signed in to the management account,
-	// specify SELF.
+	// By default, SELF is specified. Use SELF for stack sets with self-managed
+	// permissions.
 	//
-	// * If you are signed in to a delegated administrator account,
-	// specify DELEGATED_ADMIN. Your Amazon Web Services account must be registered as
-	// a delegated administrator in the management account. For more information, see
-	// Register a delegated administrator
-	// (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-delegated-admin.html)
-	// in the CloudFormation User Guide.
+	//   - If you are signed in to the management account, specify SELF .
+	//
+	//   - If you are signed in to a delegated administrator account, specify
+	//   DELEGATED_ADMIN .
+	//
+	// Your Amazon Web Services account must be registered as a delegated
+	//   administrator in the management account. For more information, see [Register a delegated administrator]in the
+	//   CloudFormation User Guide.
+	//
+	// [Register a delegated administrator]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-delegated-admin.html
 	CallAs types.CallAs
 
 	// The maximum number of results to be returned with a single call. If the number
 	// of available results exceeds this maximum, the response includes a NextToken
-	// value that you can assign to the NextToken request parameter to get the next set
-	// of results.
+	// value that you can assign to the NextToken request parameter to get the next
+	// set of results.
 	MaxResults *int32
 
-	// If the previous paginated request didn't return all of the remaining results,
-	// the response object's NextToken parameter value is set to a token. To retrieve
-	// the next set of results, call ListStackSets again and assign that token to the
+	// If the previous paginated request didn't return all the remaining results, the
+	// response object's NextToken parameter value is set to a token. To retrieve the
+	// next set of results, call ListStackSets again and assign that token to the
 	// request object's NextToken parameter. If there are no remaining results, the
-	// previous response object's NextToken parameter is set to null.
+	// previous response object's NextToken parameter is set to null .
 	NextToken *string
 
 	// The status of the stack sets that you want to get summary information about.
@@ -85,7 +84,7 @@ type ListStackSetsOutput struct {
 	// If the request doesn't return all of the remaining results, NextToken is set to
 	// a token. To retrieve the next set of results, call ListStackInstances again and
 	// assign that token to the request object's NextToken parameter. If the request
-	// returns all results, NextToken is set to null.
+	// returns all results, NextToken is set to null .
 	NextToken *string
 
 	// A list of StackSetSummary structures that contain information about the user's
@@ -99,6 +98,9 @@ type ListStackSetsOutput struct {
 }
 
 func (c *Client) addOperationListStackSetsMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpListStackSets{}, middleware.After)
 	if err != nil {
 		return err
@@ -107,34 +109,41 @@ func (c *Client) addOperationListStackSetsMiddlewares(stack *middleware.Stack, o
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ListStackSets"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -143,7 +152,22 @@ func (c *Client) addOperationListStackSetsMiddlewares(stack *middleware.Stack, o
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListStackSets(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -155,22 +179,30 @@ func (c *Client) addOperationListStackSetsMiddlewares(stack *middleware.Stack, o
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListStackSetsAPIClient is a client that implements the ListStackSets operation.
-type ListStackSetsAPIClient interface {
-	ListStackSets(context.Context, *ListStackSetsInput, ...func(*Options)) (*ListStackSetsOutput, error)
-}
-
-var _ ListStackSetsAPIClient = (*Client)(nil)
 
 // ListStackSetsPaginatorOptions is the paginator options for ListStackSets
 type ListStackSetsPaginatorOptions struct {
 	// The maximum number of results to be returned with a single call. If the number
 	// of available results exceeds this maximum, the response includes a NextToken
-	// value that you can assign to the NextToken request parameter to get the next set
-	// of results.
+	// value that you can assign to the NextToken request parameter to get the next
+	// set of results.
 	Limit int32
 
 	// Set to true if pagination should stop if the service returns a pagination token
@@ -231,6 +263,9 @@ func (p *ListStackSetsPaginator) NextPage(ctx context.Context, optFns ...func(*O
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListStackSets(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -250,11 +285,17 @@ func (p *ListStackSetsPaginator) NextPage(ctx context.Context, optFns ...func(*O
 	return result, nil
 }
 
+// ListStackSetsAPIClient is a client that implements the ListStackSets operation.
+type ListStackSetsAPIClient interface {
+	ListStackSets(context.Context, *ListStackSetsInput, ...func(*Options)) (*ListStackSetsOutput, error)
+}
+
+var _ ListStackSetsAPIClient = (*Client)(nil)
+
 func newServiceMetadataMiddleware_opListStackSets(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "cloudformation",
 		OperationName: "ListStackSets",
 	}
 }

@@ -6,19 +6,15 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Use the stack import operations for self-managed or service-managed StackSets.
-// For self-managed StackSets, the import operation can import stacks in the
-// administrator account or in different target accounts and Amazon Web Services
-// Regions. For service-managed StackSets, the import operation can import any
-// stack in the same AWS Organizations as the management account. The import
-// operation can import up to 10 stacks using inline stack IDs or up to 10,000
-// stacks using an Amazon S3 object.
+// Import existing stacks into a new stack sets. Use the stack import operation to
+// import up to 10 stacks into a new stack set in the same account as the source
+// stack or in a different administrator account and Region, by specifying the
+// stack ID of the stack you intend to import.
 func (c *Client) ImportStacksToStackSet(ctx context.Context, params *ImportStacksToStackSetInput, optFns ...func(*Options)) (*ImportStacksToStackSetOutput, error) {
 	if params == nil {
 		params = &ImportStacksToStackSetInput{}
@@ -45,31 +41,36 @@ type ImportStacksToStackSetInput struct {
 	// By default, SELF is specified. Use SELF for stack sets with self-managed
 	// permissions.
 	//
-	// * If you are signed in to the management account, specify SELF.
+	//   - If you are signed in to the management account, specify SELF .
 	//
-	// *
-	// For service managed stack sets, specify DELEGATED_ADMIN.
+	//   - For service managed stack sets, specify DELEGATED_ADMIN .
 	CallAs types.CallAs
 
 	// A unique, user defined, identifier for the stack set operation.
 	OperationId *string
 
 	// The user-specified preferences for how CloudFormation performs a stack set
-	// operation. For more information on maximum concurrent accounts and failure
-	// tolerance, see Stack set operation options
-	// (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-concepts.html#stackset-ops-options).
+	// operation.
+	//
+	// For more information about maximum concurrent accounts and failure tolerance,
+	// see [Stack set operation options].
+	//
+	// [Stack set operation options]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/what-is-cfnstacksets.html#stackset-ops-options
 	OperationPreferences *types.StackSetOperationPreferences
 
-	// The list of OU ID’s to which the stacks being imported has to be mapped as
+	// The list of OU ID's to which the stacks being imported has to be mapped as
 	// deployment target.
 	OrganizationalUnitIds []string
 
 	// The IDs of the stacks you are importing into a stack set. You import up to 10
-	// stacks per stack set at a time. Specify either StackIds or StackIdsUrl.
+	// stacks per stack set at a time.
+	//
+	// Specify either StackIds or StackIdsUrl .
 	StackIds []string
 
-	// The Amazon S3 URL which contains list of stack ids to be inputted. Specify
-	// either StackIds or StackIdsUrl.
+	// The Amazon S3 URL which contains list of stack ids to be inputted.
+	//
+	// Specify either StackIds or StackIdsUrl .
 	StackIdsUrl *string
 
 	noSmithyDocumentSerde
@@ -87,6 +88,9 @@ type ImportStacksToStackSetOutput struct {
 }
 
 func (c *Client) addOperationImportStacksToStackSetMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpImportStacksToStackSet{}, middleware.After)
 	if err != nil {
 		return err
@@ -95,40 +99,59 @@ func (c *Client) addOperationImportStacksToStackSetMiddlewares(stack *middleware
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ImportStacksToStackSet"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
 		return err
 	}
 	if err = addIdempotencyToken_opImportStacksToStackSetMiddleware(stack, options); err != nil {
@@ -140,6 +163,9 @@ func (c *Client) addOperationImportStacksToStackSetMiddlewares(stack *middleware
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opImportStacksToStackSet(options.Region), middleware.Before); err != nil {
 		return err
 	}
+	if err = addRecursionDetection(stack); err != nil {
+		return err
+	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
 		return err
 	}
@@ -147,6 +173,21 @@ func (c *Client) addOperationImportStacksToStackSetMiddlewares(stack *middleware
 		return err
 	}
 	if err = addRequestResponseLogging(stack, options); err != nil {
+		return err
+	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
 		return err
 	}
 	return nil
@@ -189,7 +230,6 @@ func newServiceMetadataMiddleware_opImportStacksToStackSet(region string) *awsmi
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "cloudformation",
 		OperationName: "ImportStacksToStackSet",
 	}
 }

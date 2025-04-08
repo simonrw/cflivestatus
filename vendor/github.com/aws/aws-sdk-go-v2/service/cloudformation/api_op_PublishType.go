@@ -4,22 +4,23 @@ package cloudformation
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Publishes the specified extension to the CloudFormation registry as a public
-// extension in this region. Public extensions are available for use by all
-// CloudFormation users. For more information on publishing extensions, see
-// Publishing extensions to make them available for public use
-// (https://docs.aws.amazon.com/cloudformation-cli/latest/userguide/publish-extension.html)
-// in the CloudFormation CLI User Guide. To publish an extension, you must be
-// registered as a publisher with CloudFormation. For more information, see
-// RegisterPublisher
-// (https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_RegisterPublisher.html).
+// extension in this Region. Public extensions are available for use by all
+// CloudFormation users. For more information about publishing extensions, see [Publishing extensions to make them available for public use]in
+// the CloudFormation Command Line Interface (CLI) User Guide.
+//
+// To publish an extension, you must be registered as a publisher with
+// CloudFormation. For more information, see [RegisterPublisher].
+//
+// [Publishing extensions to make them available for public use]: https://docs.aws.amazon.com/cloudformation-cli/latest/userguide/publish-extension.html
+// [RegisterPublisher]: https://docs.aws.amazon.com/AWSCloudFormation/latest/APIReference/API_RegisterPublisher.html
 func (c *Client) PublishType(ctx context.Context, params *PublishTypeInput, optFns ...func(*Options)) (*PublishTypeOutput, error) {
 	if params == nil {
 		params = &PublishTypeInput{}
@@ -37,25 +38,37 @@ func (c *Client) PublishType(ctx context.Context, params *PublishTypeInput, optF
 
 type PublishTypeInput struct {
 
-	// The Amazon Resource Number (ARN) of the extension. Conditional: You must specify
-	// Arn, or TypeName and Type.
+	// The Amazon Resource Name (ARN) of the extension.
+	//
+	// Conditional: You must specify Arn , or TypeName and Type .
 	Arn *string
 
-	// The version number to assign to this version of the extension. Use the following
-	// format, and adhere to semantic versioning when assigning a version number to
-	// your extension: MAJOR.MINOR.PATCH For more information, see Semantic Versioning
-	// 2.0.0 (https://semver.org/). If you do not specify a version number,
-	// CloudFormation increments the version number by one minor version release. You
-	// cannot specify a version number the first time you publish a type.
-	// CloudFormation automatically sets the first version number to be 1.0.0.
+	// The version number to assign to this version of the extension.
+	//
+	// Use the following format, and adhere to semantic versioning when assigning a
+	// version number to your extension:
+	//
+	//     MAJOR.MINOR.PATCH
+	//
+	// For more information, see [Semantic Versioning 2.0.0].
+	//
+	// If you don't specify a version number, CloudFormation increments the version
+	// number by one minor version release.
+	//
+	// You cannot specify a version number the first time you publish a type.
+	// CloudFormation automatically sets the first version number to be 1.0.0 .
+	//
+	// [Semantic Versioning 2.0.0]: https://semver.org/
 	PublicVersionNumber *string
 
-	// The type of the extension. Conditional: You must specify Arn, or TypeName and
-	// Type.
+	// The type of the extension.
+	//
+	// Conditional: You must specify Arn , or TypeName and Type .
 	Type types.ThirdPartyType
 
-	// The name of the extension. Conditional: You must specify Arn, or TypeName and
-	// Type.
+	// The name of the extension.
+	//
+	// Conditional: You must specify Arn , or TypeName and Type .
 	TypeName *string
 
 	noSmithyDocumentSerde
@@ -63,7 +76,7 @@ type PublishTypeInput struct {
 
 type PublishTypeOutput struct {
 
-	// The Amazon Resource Number (ARN) assigned to the public extension upon
+	// The Amazon Resource Name (ARN) assigned to the public extension upon
 	// publication.
 	PublicTypeArn *string
 
@@ -74,6 +87,9 @@ type PublishTypeOutput struct {
 }
 
 func (c *Client) addOperationPublishTypeMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpPublishType{}, middleware.After)
 	if err != nil {
 		return err
@@ -82,34 +98,41 @@ func (c *Client) addOperationPublishTypeMiddlewares(stack *middleware.Stack, opt
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "PublishType"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -118,7 +141,22 @@ func (c *Client) addOperationPublishTypeMiddlewares(stack *middleware.Stack, opt
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opPublishType(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -130,6 +168,21 @@ func (c *Client) addOperationPublishTypeMiddlewares(stack *middleware.Stack, opt
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -137,7 +190,6 @@ func newServiceMetadataMiddleware_opPublishType(region string) *awsmiddleware.Re
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "cloudformation",
 		OperationName: "PublishType",
 	}
 }

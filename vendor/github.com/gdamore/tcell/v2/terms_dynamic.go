@@ -1,3 +1,4 @@
+//go:build !tcell_minimal && !nacl && !js && !zos && !plan9 && !windows && !android
 // +build !tcell_minimal,!nacl,!js,!zos,!plan9,!windows,!android
 
 // Copyright 2019 The TCell Authors
@@ -26,9 +27,14 @@ import (
 	// will be automatically included anyway.
 	"github.com/gdamore/tcell/v2/terminfo"
 	"github.com/gdamore/tcell/v2/terminfo/dynamic"
+
+	"fmt"
 )
 
 func loadDynamicTerminfo(term string) (*terminfo.Terminfo, error) {
+	if term == "" {
+		return nil, fmt.Errorf("%w: term not set", ErrTermNotFound)
+	}
 	ti, _, e := dynamic.LoadTerminfo(term)
 	if e != nil {
 		return nil, e

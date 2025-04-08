@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -39,8 +38,8 @@ type ListChangeSetsInput struct {
 	// This member is required.
 	StackName *string
 
-	// A string (provided by the ListChangeSets response output) that identifies the
-	// next page of change sets that you want to retrieve.
+	// A string (provided by the ListChangeSets response output) that identifies the next page of
+	// change sets that you want to retrieve.
 	NextToken *string
 
 	noSmithyDocumentSerde
@@ -50,7 +49,7 @@ type ListChangeSetsInput struct {
 type ListChangeSetsOutput struct {
 
 	// If the output exceeds 1 MB, a string that identifies the next page of change
-	// sets. If there is no additional page, this value is null.
+	// sets. If there is no additional page, this value is null .
 	NextToken *string
 
 	// A list of ChangeSetSummary structures that provides the ID and status of each
@@ -64,6 +63,9 @@ type ListChangeSetsOutput struct {
 }
 
 func (c *Client) addOperationListChangeSetsMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpListChangeSets{}, middleware.After)
 	if err != nil {
 		return err
@@ -72,34 +74,41 @@ func (c *Client) addOperationListChangeSetsMiddlewares(stack *middleware.Stack, 
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ListChangeSets"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -108,10 +117,25 @@ func (c *Client) addOperationListChangeSetsMiddlewares(stack *middleware.Stack, 
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpListChangeSetsValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListChangeSets(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -123,16 +147,23 @@ func (c *Client) addOperationListChangeSetsMiddlewares(stack *middleware.Stack, 
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListChangeSetsAPIClient is a client that implements the ListChangeSets
-// operation.
-type ListChangeSetsAPIClient interface {
-	ListChangeSets(context.Context, *ListChangeSetsInput, ...func(*Options)) (*ListChangeSetsOutput, error)
-}
-
-var _ ListChangeSetsAPIClient = (*Client)(nil)
 
 // ListChangeSetsPaginatorOptions is the paginator options for ListChangeSets
 type ListChangeSetsPaginatorOptions struct {
@@ -185,6 +216,9 @@ func (p *ListChangeSetsPaginator) NextPage(ctx context.Context, optFns ...func(*
 	params := *p.params
 	params.NextToken = p.nextToken
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListChangeSets(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -204,11 +238,18 @@ func (p *ListChangeSetsPaginator) NextPage(ctx context.Context, optFns ...func(*
 	return result, nil
 }
 
+// ListChangeSetsAPIClient is a client that implements the ListChangeSets
+// operation.
+type ListChangeSetsAPIClient interface {
+	ListChangeSets(context.Context, *ListChangeSetsInput, ...func(*Options)) (*ListChangeSetsOutput, error)
+}
+
+var _ ListChangeSetsAPIClient = (*Client)(nil)
+
 func newServiceMetadataMiddleware_opListChangeSets(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "cloudformation",
 		OperationName: "ListChangeSets",
 	}
 }

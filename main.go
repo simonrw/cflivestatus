@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/aws/smithy-go"
 	"github.com/gdamore/tcell/v2"
 	"github.com/jessevdk/go-flags"
@@ -160,10 +161,9 @@ func main() {
 	ctx := context.TODO()
 
 	var opts struct {
-		EndpointURL string        `long:"endpoint-url" required:"no"`
-		SleepTime   time.Duration `short:"s" long:"sleep-time" required:"no" default:"0"`
-		Verbose     []bool        `short:"v" long:"verbose" description:"Print verbose logging output"`
-		Args        struct {
+		SleepTime time.Duration `short:"s" long:"sleep-time" required:"no" default:"0"`
+		Verbose   []bool        `short:"v" long:"verbose" description:"Print verbose logging output"`
+		Args      struct {
 			Name string `required:"yes" positional-arg-name:"stack-name"`
 		} `positional-args:"yes" required:"yes"`
 	}
@@ -184,24 +184,23 @@ func main() {
 	log.Debug().Msgf("%s starting", os.Args[0])
 	log.Debug().Interface("opts", opts).Msg("parsed command line options")
 
-	// TODO: update default region
-
-	customResolver := aws.EndpointResolverWithOptionsFunc(func(service, region string, options ...interface{}) (aws.Endpoint, error) {
-		if opts.EndpointURL != "" {
-			return aws.Endpoint{
-				PartitionID: "aws",
-				URL:         opts.EndpointURL,
-			}, nil
-		}
-
-		// returning EndpointNotFoundError will allow the service to fallback to its default resolution
-		return aws.Endpoint{}, &aws.EndpointNotFoundError{}
-	})
-
-	cfg, err := config.LoadDefaultConfig(ctx, config.WithEndpointResolverWithOptions(customResolver))
+	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		log.Err(err).Msg("error loading default config")
 	}
+
+    // get caller identity
+    stsClient := sts.NewFromConfig(cfg)
+    r, err := stsClient.GetCallerIdentity(context.TODO(), &sts.GetCallerIdentityInput{})
+    if err != nil {
+        log.Err(err).Msg("getting caller identity")
+    }
+	fmt.Printf(
+		"Account: %s\nUserID: %s\nARN: %s\n",
+		aws.ToString(r.Account),
+		aws.ToString(r.UserId),
+		aws.ToString(r.Arn),
+	)
 
 	svc := cloudformation.NewFromConfig(cfg)
 	f := fetcher.New(opts.Args.Name, svc)

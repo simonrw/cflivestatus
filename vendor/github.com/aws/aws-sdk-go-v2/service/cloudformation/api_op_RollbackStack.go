@@ -4,30 +4,32 @@ package cloudformation
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// When specifying RollbackStack, you preserve the state of previously provisioned
+// When specifying RollbackStack , you preserve the state of previously provisioned
 // resources when an operation fails. You can check the status of the stack through
-// the DescribeStacks API. Rolls back the specified stack to the last known stable
-// state from CREATE_FAILED or UPDATE_FAILED stack statuses. This operation will
-// delete a stack if it doesn't contain a last known stable state. A last known
-// stable state includes any status in a *_COMPLETE. This includes the following
-// stack statuses.
+// the DescribeStacksoperation.
 //
-// * CREATE_COMPLETE
+// Rolls back the specified stack to the last known stable state from CREATE_FAILED
+// or UPDATE_FAILED stack statuses.
 //
-// * UPDATE_COMPLETE
+// This operation will delete a stack if it doesn't contain a last known stable
+// state. A last known stable state includes any status in a *_COMPLETE . This
+// includes the following stack statuses.
 //
-// *
-// UPDATE_ROLLBACK_COMPLETE
+//   - CREATE_COMPLETE
 //
-// * IMPORT_COMPLETE
+//   - UPDATE_COMPLETE
 //
-// * IMPORT_ROLLBACK_COMPLETE
+//   - UPDATE_ROLLBACK_COMPLETE
+//
+//   - IMPORT_COMPLETE
+//
+//   - IMPORT_ROLLBACK_COMPLETE
 func (c *Client) RollbackStack(ctx context.Context, params *RollbackStackInput, optFns ...func(*Options)) (*RollbackStackOutput, error) {
 	if params == nil {
 		params = &RollbackStackInput{}
@@ -45,7 +47,7 @@ func (c *Client) RollbackStack(ctx context.Context, params *RollbackStackInput, 
 
 type RollbackStackInput struct {
 
-	// The name that is associated with the stack.
+	// The name that's associated with the stack.
 	//
 	// This member is required.
 	StackName *string
@@ -53,8 +55,15 @@ type RollbackStackInput struct {
 	// A unique identifier for this RollbackStack request.
 	ClientRequestToken *string
 
-	// The Amazon Resource Name (ARN) of an Identity and Access Management role that
-	// CloudFormation assumes to rollback the stack.
+	// When set to true , newly created resources are deleted when the operation rolls
+	// back. This includes newly created resources marked with a deletion policy of
+	// Retain .
+	//
+	// Default: false
+	RetainExceptOnCreate *bool
+
+	// The Amazon Resource Name (ARN) of an IAM role that CloudFormation assumes to
+	// rollback the stack.
 	RoleARN *string
 
 	noSmithyDocumentSerde
@@ -72,6 +81,9 @@ type RollbackStackOutput struct {
 }
 
 func (c *Client) addOperationRollbackStackMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpRollbackStack{}, middleware.After)
 	if err != nil {
 		return err
@@ -80,34 +92,41 @@ func (c *Client) addOperationRollbackStackMiddlewares(stack *middleware.Stack, o
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "RollbackStack"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -116,10 +135,25 @@ func (c *Client) addOperationRollbackStackMiddlewares(stack *middleware.Stack, o
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = addOpRollbackStackValidationMiddleware(stack); err != nil {
 		return err
 	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opRollbackStack(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -131,6 +165,21 @@ func (c *Client) addOperationRollbackStackMiddlewares(stack *middleware.Stack, o
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -138,7 +187,6 @@ func newServiceMetadataMiddleware_opRollbackStack(region string) *awsmiddleware.
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "cloudformation",
 		OperationName: "RollbackStack",
 	}
 }

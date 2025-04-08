@@ -4,19 +4,21 @@ package cloudformation
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
-// Deactivates a public extension that was previously activated in this account and
-// region. Once deactivated, an extension cannot be used in any CloudFormation
-// operation. This includes stack update operations where the stack template
-// includes the extension, even if no updates are being made to the extension. In
-// addition, deactivated extensions are not automatically updated if a new version
-// of the extension is released.
+// Deactivates a public extension that was previously activated in this account
+// and Region.
+//
+// Once deactivated, an extension can't be used in any CloudFormation operation.
+// This includes stack update operations where the stack template includes the
+// extension, even if no updates are being made to the extension. In addition,
+// deactivated extensions aren't automatically updated if a new version of the
+// extension is released.
 func (c *Client) DeactivateType(ctx context.Context, params *DeactivateTypeInput, optFns ...func(*Options)) (*DeactivateTypeOutput, error) {
 	if params == nil {
 		params = &DeactivateTypeInput{}
@@ -34,17 +36,20 @@ func (c *Client) DeactivateType(ctx context.Context, params *DeactivateTypeInput
 
 type DeactivateTypeInput struct {
 
-	// The Amazon Resource Name (ARN) for the extension, in this account and region.
-	// Conditional: You must specify either Arn, or TypeName and Type.
+	// The Amazon Resource Name (ARN) for the extension, in this account and Region.
+	//
+	// Conditional: You must specify either Arn , or TypeName and Type .
 	Arn *string
 
-	// The extension type. Conditional: You must specify either Arn, or TypeName and
-	// Type.
+	// The extension type.
+	//
+	// Conditional: You must specify either Arn , or TypeName and Type .
 	Type types.ThirdPartyType
 
-	// The type name of the extension, in this account and region. If you specified a
+	// The type name of the extension, in this account and Region. If you specified a
 	// type name alias when enabling the extension, use the type name alias.
-	// Conditional: You must specify either Arn, or TypeName and Type.
+	//
+	// Conditional: You must specify either Arn , or TypeName and Type .
 	TypeName *string
 
 	noSmithyDocumentSerde
@@ -58,6 +63,9 @@ type DeactivateTypeOutput struct {
 }
 
 func (c *Client) addOperationDeactivateTypeMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpDeactivateType{}, middleware.After)
 	if err != nil {
 		return err
@@ -66,34 +74,41 @@ func (c *Client) addOperationDeactivateTypeMiddlewares(stack *middleware.Stack, 
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DeactivateType"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -102,7 +117,22 @@ func (c *Client) addOperationDeactivateTypeMiddlewares(stack *middleware.Stack, 
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDeactivateType(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -114,6 +144,21 @@ func (c *Client) addOperationDeactivateTypeMiddlewares(stack *middleware.Stack, 
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -121,7 +166,6 @@ func newServiceMetadataMiddleware_opDeactivateType(region string) *awsmiddleware
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "cloudformation",
 		OperationName: "DeactivateType",
 	}
 }

@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -31,47 +30,51 @@ func (c *Client) ListTypeVersions(ctx context.Context, params *ListTypeVersionsI
 type ListTypeVersionsInput struct {
 
 	// The Amazon Resource Name (ARN) of the extension for which you want version
-	// summary information. Conditional: You must specify either TypeName and Type, or
-	// Arn.
+	// summary information.
+	//
+	// Conditional: You must specify either TypeName and Type , or Arn .
 	Arn *string
 
 	// The deprecation status of the extension versions that you want to get summary
-	// information about. Valid values include:
+	// information about.
 	//
-	// * LIVE: The extension version is
-	// registered and can be used in CloudFormation operations, dependent on its
-	// provisioning behavior and visibility scope.
+	// Valid values include:
 	//
-	// * DEPRECATED: The extension version
-	// has been deregistered and can no longer be used in CloudFormation
-	// operations.
+	//   - LIVE : The extension version is registered and can be used in CloudFormation
+	//   operations, dependent on its provisioning behavior and visibility scope.
 	//
-	// The default is LIVE.
+	//   - DEPRECATED : The extension version has been deregistered and can no longer
+	//   be used in CloudFormation operations.
+	//
+	// The default is LIVE .
 	DeprecatedStatus types.DeprecatedStatus
 
 	// The maximum number of results to be returned with a single call. If the number
 	// of available results exceeds this maximum, the response includes a NextToken
-	// value that you can assign to the NextToken request parameter to get the next set
-	// of results.
+	// value that you can assign to the NextToken request parameter to get the next
+	// set of results.
 	MaxResults *int32
 
 	// If the previous paginated request didn't return all of the remaining results,
 	// the response object's NextToken parameter value is set to a token. To retrieve
 	// the next set of results, call this action again and assign that token to the
 	// request object's NextToken parameter. If there are no remaining results, the
-	// previous response object's NextToken parameter is set to null.
+	// previous response object's NextToken parameter is set to null .
 	NextToken *string
 
-	// The publisher ID of the extension publisher. Extensions published by Amazon are
-	// not assigned a publisher ID.
+	// The publisher ID of the extension publisher.
+	//
+	// Extensions published by Amazon aren't assigned a publisher ID.
 	PublisherId *string
 
-	// The kind of the extension. Conditional: You must specify either TypeName and
-	// Type, or Arn.
+	// The kind of the extension.
+	//
+	// Conditional: You must specify either TypeName and Type , or Arn .
 	Type types.RegistryType
 
 	// The name of the extension for which you want version summary information.
-	// Conditional: You must specify either TypeName and Type, or Arn.
+	//
+	// Conditional: You must specify either TypeName and Type , or Arn .
 	TypeName *string
 
 	noSmithyDocumentSerde
@@ -82,7 +85,7 @@ type ListTypeVersionsOutput struct {
 	// If the request doesn't return all of the remaining results, NextToken is set to
 	// a token. To retrieve the next set of results, call this action again and assign
 	// that token to the request object's NextToken parameter. If the request returns
-	// all results, NextToken is set to null.
+	// all results, NextToken is set to null .
 	NextToken *string
 
 	// A list of TypeVersionSummary structures that contain information about the
@@ -96,6 +99,9 @@ type ListTypeVersionsOutput struct {
 }
 
 func (c *Client) addOperationListTypeVersionsMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpListTypeVersions{}, middleware.After)
 	if err != nil {
 		return err
@@ -104,34 +110,41 @@ func (c *Client) addOperationListTypeVersionsMiddlewares(stack *middleware.Stack
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "ListTypeVersions"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -140,7 +153,22 @@ func (c *Client) addOperationListTypeVersionsMiddlewares(stack *middleware.Stack
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opListTypeVersions(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -152,23 +180,30 @@ func (c *Client) addOperationListTypeVersionsMiddlewares(stack *middleware.Stack
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
-
-// ListTypeVersionsAPIClient is a client that implements the ListTypeVersions
-// operation.
-type ListTypeVersionsAPIClient interface {
-	ListTypeVersions(context.Context, *ListTypeVersionsInput, ...func(*Options)) (*ListTypeVersionsOutput, error)
-}
-
-var _ ListTypeVersionsAPIClient = (*Client)(nil)
 
 // ListTypeVersionsPaginatorOptions is the paginator options for ListTypeVersions
 type ListTypeVersionsPaginatorOptions struct {
 	// The maximum number of results to be returned with a single call. If the number
 	// of available results exceeds this maximum, the response includes a NextToken
-	// value that you can assign to the NextToken request parameter to get the next set
-	// of results.
+	// value that you can assign to the NextToken request parameter to get the next
+	// set of results.
 	Limit int32
 
 	// Set to true if pagination should stop if the service returns a pagination token
@@ -229,6 +264,9 @@ func (p *ListTypeVersionsPaginator) NextPage(ctx context.Context, optFns ...func
 	}
 	params.MaxResults = limit
 
+	optFns = append([]func(*Options){
+		addIsPaginatorUserAgent,
+	}, optFns...)
 	result, err := p.client.ListTypeVersions(ctx, &params, optFns...)
 	if err != nil {
 		return nil, err
@@ -248,11 +286,18 @@ func (p *ListTypeVersionsPaginator) NextPage(ctx context.Context, optFns ...func
 	return result, nil
 }
 
+// ListTypeVersionsAPIClient is a client that implements the ListTypeVersions
+// operation.
+type ListTypeVersionsAPIClient interface {
+	ListTypeVersions(context.Context, *ListTypeVersionsInput, ...func(*Options)) (*ListTypeVersionsOutput, error)
+}
+
+var _ ListTypeVersionsAPIClient = (*Client)(nil)
+
 func newServiceMetadataMiddleware_opListTypeVersions(region string) *awsmiddleware.RegisterServiceMetadata {
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "cloudformation",
 		OperationName: "ListTypeVersions",
 	}
 }

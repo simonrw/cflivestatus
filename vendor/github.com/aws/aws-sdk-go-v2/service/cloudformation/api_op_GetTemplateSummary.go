@@ -4,8 +4,8 @@ package cloudformation
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
@@ -14,10 +14,12 @@ import (
 // Returns information about a new or existing template. The GetTemplateSummary
 // action is useful for viewing parameter information, such as default parameter
 // values and parameter types, before you create or update a stack or stack set.
-// You can use the GetTemplateSummary action when you submit a template, or you can
-// get template information for a stack set, or a running or deleted stack. For
-// deleted stacks, GetTemplateSummary returns the template information for up to 90
-// days after the stack has been deleted. If the template does not exist, a
+//
+// You can use the GetTemplateSummary action when you submit a template, or you
+// can get template information for a stack set, or a running or deleted stack.
+//
+// For deleted stacks, GetTemplateSummary returns the template information for up
+// to 90 days after the stack has been deleted. If the template doesn't exist, a
 // ValidationError is returned.
 func (c *Client) GetTemplateSummary(ctx context.Context, params *GetTemplateSummaryInput, optFns ...func(*Options)) (*GetTemplateSummaryOutput, error) {
 	if params == nil {
@@ -39,46 +41,53 @@ type GetTemplateSummaryInput struct {
 
 	// [Service-managed permissions] Specifies whether you are acting as an account
 	// administrator in the organization's management account or as a delegated
-	// administrator in a member account. By default, SELF is specified. Use SELF for
-	// stack sets with self-managed permissions.
+	// administrator in a member account.
 	//
-	// * If you are signed in to the
-	// management account, specify SELF.
+	// By default, SELF is specified. Use SELF for stack sets with self-managed
+	// permissions.
 	//
-	// * If you are signed in to a delegated
-	// administrator account, specify DELEGATED_ADMIN. Your Amazon Web Services account
-	// must be registered as a delegated administrator in the management account. For
-	// more information, see Register a delegated administrator
-	// (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-delegated-admin.html)
-	// in the CloudFormation User Guide.
+	//   - If you are signed in to the management account, specify SELF .
+	//
+	//   - If you are signed in to a delegated administrator account, specify
+	//   DELEGATED_ADMIN .
+	//
+	// Your Amazon Web Services account must be registered as a delegated
+	//   administrator in the management account. For more information, see [Register a delegated administrator]in the
+	//   CloudFormation User Guide.
+	//
+	// [Register a delegated administrator]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/stacksets-orgs-delegated-admin.html
 	CallAs types.CallAs
 
-	// The name or the stack ID that is associated with the stack, which are not always
+	// The name or the stack ID that's associated with the stack, which aren't always
 	// interchangeable. For running stacks, you can specify either the stack's name or
 	// its unique stack ID. For deleted stack, you must specify the unique stack ID.
-	// Conditional: You must specify only one of the following parameters: StackName,
-	// StackSetName, TemplateBody, or TemplateURL.
+	//
+	// Conditional: You must specify only one of the following parameters: StackName ,
+	// StackSetName , TemplateBody , or TemplateURL .
 	StackName *string
 
 	// The name or unique ID of the stack set from which the stack was created.
-	// Conditional: You must specify only one of the following parameters: StackName,
-	// StackSetName, TemplateBody, or TemplateURL.
+	//
+	// Conditional: You must specify only one of the following parameters: StackName ,
+	// StackSetName , TemplateBody , or TemplateURL .
 	StackSetName *string
 
 	// Structure containing the template body with a minimum length of 1 byte and a
-	// maximum length of 51,200 bytes. For more information about templates, see
-	// Template Anatomy
-	// (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-anatomy.html)
-	// in the CloudFormation User Guide. Conditional: You must specify only one of the
-	// following parameters: StackName, StackSetName, TemplateBody, or TemplateURL.
+	// maximum length of 51,200 bytes.
+	//
+	// Conditional: You must specify only one of the following parameters: StackName ,
+	// StackSetName , TemplateBody , or TemplateURL .
 	TemplateBody *string
 
-	// Location of file containing the template body. The URL must point to a template
-	// (max size: 460,800 bytes) that is located in an Amazon S3 bucket or a Systems
-	// Manager document. For more information about templates, see Template Anatomy
-	// (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/template-anatomy.html)
-	// in the CloudFormation User Guide. Conditional: You must specify only one of the
-	// following parameters: StackName, StackSetName, TemplateBody, or TemplateURL.
+	// Specifies options for the GetTemplateSummary API action.
+	TemplateSummaryConfig *types.TemplateSummaryConfig
+
+	// The URL of a file containing the template body. The URL must point to a
+	// template (max size: 1 MB) that's located in an Amazon S3 bucket or a Systems
+	// Manager document. The location for an Amazon S3 bucket must start with https:// .
+	//
+	// Conditional: You must specify only one of the following parameters: StackName ,
+	// StackSetName , TemplateBody , or TemplateURL .
 	TemplateURL *string
 
 	noSmithyDocumentSerde
@@ -88,11 +97,13 @@ type GetTemplateSummaryInput struct {
 type GetTemplateSummaryOutput struct {
 
 	// The capabilities found within the template. If your template contains IAM
-	// resources, you must specify the CAPABILITY_IAM or CAPABILITY_NAMED_IAM value for
-	// this parameter when you use the CreateStack or UpdateStack actions with your
-	// template; otherwise, those actions return an InsufficientCapabilities error. For
-	// more information, see Acknowledging IAM Resources in CloudFormation Templates
-	// (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-iam-template.html#capabilities).
+	// resources, you must specify the CAPABILITY_IAM or CAPABILITY_NAMED_IAM value
+	// for this parameter when you use the CreateStackor UpdateStack actions with your template; otherwise,
+	// those actions return an InsufficientCapabilities error.
+	//
+	// For more information, see [Acknowledging IAM resources in CloudFormation templates].
+	//
+	// [Acknowledging IAM resources in CloudFormation templates]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/control-access-with-iam.html#using-iam-capabilities
 	Capabilities []types.Capability
 
 	// The list of resources that generated the values in the Capabilities response
@@ -102,29 +113,32 @@ type GetTemplateSummaryOutput struct {
 	// A list of the transforms that are declared in the template.
 	DeclaredTransforms []string
 
-	// The value that is defined in the Description property of the template.
+	// The value that's defined in the Description property of the template.
 	Description *string
 
-	// The value that is defined for the Metadata property of the template.
+	// The value that's defined for the Metadata property of the template.
 	Metadata *string
 
 	// A list of parameter declarations that describe various properties for each
 	// parameter.
 	Parameters []types.ParameterDeclaration
 
-	// A list of resource identifier summaries that describe the target resources of an
-	// import operation and the properties you can provide during the import to
+	// A list of resource identifier summaries that describe the target resources of
+	// an import operation and the properties you can provide during the import to
 	// identify the target resources. For example, BucketName is a possible identifier
 	// property for an AWS::S3::Bucket resource.
 	ResourceIdentifierSummaries []types.ResourceIdentifierSummary
 
-	// A list of all the template resource types that are defined in the template, such
-	// as AWS::EC2::Instance, AWS::Dynamo::Table, and Custom::MyCustomInstance.
+	// A list of all the template resource types that are defined in the template,
+	// such as AWS::EC2::Instance , AWS::Dynamo::Table , and Custom::MyCustomInstance .
 	ResourceTypes []string
 
 	// The Amazon Web Services template format version, which identifies the
 	// capabilities of the template.
 	Version *string
+
+	// An object containing any warnings returned.
+	Warnings *types.Warnings
 
 	// Metadata pertaining to the operation's result.
 	ResultMetadata middleware.Metadata
@@ -133,6 +147,9 @@ type GetTemplateSummaryOutput struct {
 }
 
 func (c *Client) addOperationGetTemplateSummaryMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpGetTemplateSummary{}, middleware.After)
 	if err != nil {
 		return err
@@ -141,34 +158,41 @@ func (c *Client) addOperationGetTemplateSummaryMiddlewares(stack *middleware.Sta
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "GetTemplateSummary"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -177,7 +201,22 @@ func (c *Client) addOperationGetTemplateSummaryMiddlewares(stack *middleware.Sta
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opGetTemplateSummary(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -189,6 +228,21 @@ func (c *Client) addOperationGetTemplateSummaryMiddlewares(stack *middleware.Sta
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -196,7 +250,6 @@ func newServiceMetadataMiddleware_opGetTemplateSummary(region string) *awsmiddle
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "cloudformation",
 		OperationName: "GetTemplateSummary",
 	}
 }

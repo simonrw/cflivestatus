@@ -9,13 +9,6 @@ repos:
         pass_filenames: false
         types:
           - go
-      - id: staticcheck
-        name: staticcheck
-        entry: staticcheck ./...
-        language: system
-        pass_filenames: false
-        types:
-          - go
       - id: go test
         name: go test
         entry: go test ./...

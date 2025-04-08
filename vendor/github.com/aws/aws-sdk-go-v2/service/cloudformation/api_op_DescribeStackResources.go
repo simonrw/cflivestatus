@@ -4,27 +4,33 @@ package cloudformation
 
 import (
 	"context"
+	"fmt"
 	awsmiddleware "github.com/aws/aws-sdk-go-v2/aws/middleware"
-	"github.com/aws/aws-sdk-go-v2/aws/signer/v4"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/smithy-go/middleware"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
 )
 
 // Returns Amazon Web Services resource descriptions for running and deleted
-// stacks. If StackName is specified, all the associated resources that are part of
-// the stack are returned. If PhysicalResourceId is specified, the associated
-// resources of the stack that the resource belongs to are returned. Only the first
-// 100 resources will be returned. If your stack has more resources than this, you
-// should use ListStackResources instead. For deleted stacks,
-// DescribeStackResources returns resource information for up to 90 days after the
-// stack has been deleted. You must specify either StackName or PhysicalResourceId,
-// but not both. In addition, you can specify LogicalResourceId to filter the
-// returned result. For more information about resources, the LogicalResourceId and
-// PhysicalResourceId, go to the CloudFormation User Guide
-// (https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/). A
-// ValidationError is returned if you specify both StackName and PhysicalResourceId
-// in the same request.
+// stacks. If StackName is specified, all the associated resources that are part
+// of the stack are returned. If PhysicalResourceId is specified, the associated
+// resources of the stack that the resource belongs to are returned.
+//
+// Only the first 100 resources will be returned. If your stack has more resources
+// than this, you should use ListStackResources instead.
+//
+// For deleted stacks, DescribeStackResources returns resource information for up
+// to 90 days after the stack has been deleted.
+//
+// You must specify either StackName or PhysicalResourceId , but not both. In
+// addition, you can specify LogicalResourceId to filter the returned result. For
+// more information about resources, the LogicalResourceId and PhysicalResourceId ,
+// see the [CloudFormation User Guide].
+//
+// A ValidationError is returned if you specify both StackName and
+// PhysicalResourceId in the same request.
+//
+// [CloudFormation User Guide]: https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/
 func (c *Client) DescribeStackResources(ctx context.Context, params *DescribeStackResourcesInput, optFns ...func(*Options)) (*DescribeStackResourcesOutput, error) {
 	if params == nil {
 		params = &DescribeStackResourcesInput{}
@@ -43,30 +49,31 @@ func (c *Client) DescribeStackResources(ctx context.Context, params *DescribeSta
 // The input for DescribeStackResources action.
 type DescribeStackResourcesInput struct {
 
-	// The logical name of the resource as specified in the template. Default: There is
-	// no default value.
+	// The logical name of the resource as specified in the template.
 	LogicalResourceId *string
 
 	// The name or unique identifier that corresponds to a physical instance ID of a
-	// resource supported by CloudFormation. For example, for an Amazon Elastic Compute
-	// Cloud (EC2) instance, PhysicalResourceId corresponds to the InstanceId. You can
-	// pass the EC2 InstanceId to DescribeStackResources to find which stack the
-	// instance belongs to and what other resources are part of the stack. Required:
-	// Conditional. If you do not specify PhysicalResourceId, you must specify
-	// StackName. Default: There is no default value.
+	// resource supported by CloudFormation.
+	//
+	// For example, for an Amazon Elastic Compute Cloud (EC2) instance,
+	// PhysicalResourceId corresponds to the InstanceId . You can pass the EC2
+	// InstanceId to DescribeStackResources to find which stack the instance belongs
+	// to and what other resources are part of the stack.
+	//
+	// Required: Conditional. If you don't specify PhysicalResourceId , you must
+	// specify StackName .
 	PhysicalResourceId *string
 
-	// The name or the unique stack ID that is associated with the stack, which are not
+	// The name or the unique stack ID that is associated with the stack, which aren't
 	// always interchangeable:
 	//
-	// * Running stacks: You can specify either the stack's
-	// name or its unique stack ID.
+	//   - Running stacks: You can specify either the stack's name or its unique stack
+	//   ID.
 	//
-	// * Deleted stacks: You must specify the unique
-	// stack ID.
+	//   - Deleted stacks: You must specify the unique stack ID.
 	//
-	// Default: There is no default value. Required: Conditional. If you do
-	// not specify StackName, you must specify PhysicalResourceId.
+	// Required: Conditional. If you don't specify StackName , you must specify
+	// PhysicalResourceId .
 	StackName *string
 
 	noSmithyDocumentSerde
@@ -85,6 +92,9 @@ type DescribeStackResourcesOutput struct {
 }
 
 func (c *Client) addOperationDescribeStackResourcesMiddlewares(stack *middleware.Stack, options Options) (err error) {
+	if err := stack.Serialize.Add(&setOperationInputMiddleware{}, middleware.After); err != nil {
+		return err
+	}
 	err = stack.Serialize.Add(&awsAwsquery_serializeOpDescribeStackResources{}, middleware.After)
 	if err != nil {
 		return err
@@ -93,34 +103,41 @@ func (c *Client) addOperationDescribeStackResourcesMiddlewares(stack *middleware
 	if err != nil {
 		return err
 	}
+	if err := addProtocolFinalizerMiddlewares(stack, options, "DescribeStackResources"); err != nil {
+		return fmt.Errorf("add protocol finalizers: %v", err)
+	}
+
+	if err = addlegacyEndpointContextSetter(stack, options); err != nil {
+		return err
+	}
 	if err = addSetLoggerMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddClientRequestIDMiddleware(stack); err != nil {
+	if err = addClientRequestID(stack); err != nil {
 		return err
 	}
-	if err = smithyhttp.AddComputeContentLengthMiddleware(stack); err != nil {
+	if err = addComputeContentLength(stack); err != nil {
 		return err
 	}
 	if err = addResolveEndpointMiddleware(stack, options); err != nil {
 		return err
 	}
-	if err = v4.AddComputePayloadSHA256Middleware(stack); err != nil {
+	if err = addComputePayloadSHA256(stack); err != nil {
 		return err
 	}
-	if err = addRetryMiddlewares(stack, options); err != nil {
+	if err = addRetry(stack, options); err != nil {
 		return err
 	}
-	if err = addHTTPSignerV4Middleware(stack, options); err != nil {
+	if err = addRawResponseToMetadata(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRawResponseToMetadata(stack); err != nil {
+	if err = addRecordResponseTiming(stack); err != nil {
 		return err
 	}
-	if err = awsmiddleware.AddRecordResponseTiming(stack); err != nil {
+	if err = addSpanRetryLoop(stack, options); err != nil {
 		return err
 	}
-	if err = addClientUserAgent(stack); err != nil {
+	if err = addClientUserAgent(stack, options); err != nil {
 		return err
 	}
 	if err = smithyhttp.AddErrorCloseResponseBodyMiddleware(stack); err != nil {
@@ -129,7 +146,22 @@ func (c *Client) addOperationDescribeStackResourcesMiddlewares(stack *middleware
 	if err = smithyhttp.AddCloseResponseBodyMiddleware(stack); err != nil {
 		return err
 	}
+	if err = addSetLegacyContextSigningOptionsMiddleware(stack); err != nil {
+		return err
+	}
+	if err = addTimeOffsetBuild(stack, c); err != nil {
+		return err
+	}
+	if err = addUserAgentRetryMode(stack, options); err != nil {
+		return err
+	}
+	if err = addCredentialSource(stack, options); err != nil {
+		return err
+	}
 	if err = stack.Initialize.Add(newServiceMetadataMiddleware_opDescribeStackResources(options.Region), middleware.Before); err != nil {
+		return err
+	}
+	if err = addRecursionDetection(stack); err != nil {
 		return err
 	}
 	if err = addRequestIDRetrieverMiddleware(stack); err != nil {
@@ -141,6 +173,21 @@ func (c *Client) addOperationDescribeStackResourcesMiddlewares(stack *middleware
 	if err = addRequestResponseLogging(stack, options); err != nil {
 		return err
 	}
+	if err = addDisableHTTPSMiddleware(stack, options); err != nil {
+		return err
+	}
+	if err = addSpanInitializeStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanInitializeEnd(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestStart(stack); err != nil {
+		return err
+	}
+	if err = addSpanBuildRequestEnd(stack); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -148,7 +195,6 @@ func newServiceMetadataMiddleware_opDescribeStackResources(region string) *awsmi
 	return &awsmiddleware.RegisterServiceMetadata{
 		Region:        region,
 		ServiceID:     ServiceID,
-		SigningName:   "cloudformation",
 		OperationName: "DescribeStackResources",
 	}
 }
